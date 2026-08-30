@@ -65,6 +65,10 @@ export function sceneInputFromParams(
   const roomHeight = params.dimensions.roomHeight / 1000
 
   return {
+    // Сцена умеет три категории; остальные рисуются как кухня, пока для них
+    // не появилась своя геометрия.
+    category:
+      params.category === 'wardrobe' || params.category === 'cabinet' ? params.category : 'kitchen',
     room: {
       width: roomWidth,
       height: roomHeight,

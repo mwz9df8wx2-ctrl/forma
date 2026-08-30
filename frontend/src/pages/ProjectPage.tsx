@@ -165,7 +165,11 @@ export function ProjectPage() {
         <div className="min-w-0 flex-1 px-5 pt-6 pb-10 lg:px-10 lg:pt-8">
           <div className="mx-auto max-w-3xl">
             <h1 className="text-[1.5rem] leading-tight font-semibold tracking-[-0.025em] text-ink lg:text-[1.75rem]">
-              Настройте будущую кухню
+              {params.category === 'wardrobe'
+                ? 'Настройте будущий шкаф'
+                : params.category === 'cabinet'
+                  ? 'Настройте будущую тумбу'
+                  : 'Настройте будущую кухню'}
             </h1>
             <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
               Выберите материалы и характер интерьера. Изменить параметры можно в любой момент.
@@ -234,17 +238,20 @@ export function ProjectPage() {
                     />
                   </ParameterSection>
 
-                  <ParameterSection id="countertop" eyebrow="Столешница">
-                    <CountertopSelector
-                      countertops={catalog.countertops}
-                      materialId={params.countertopMaterialId}
-                      colorId={params.countertopColorId}
-                      onMaterialChange={(countertopMaterialId) =>
-                        updateParams({ countertopMaterialId })
-                      }
-                      onColorChange={(countertopColorId) => updateParams({ countertopColorId })}
-                    />
-                  </ParameterSection>
+                  {/* У шкафа и тумбы столешницы нет — и выбирать её незачем. */}
+                  {params.category !== 'wardrobe' && params.category !== 'cabinet' && (
+                    <ParameterSection id="countertop" eyebrow="Столешница">
+                      <CountertopSelector
+                        countertops={catalog.countertops}
+                        materialId={params.countertopMaterialId}
+                        colorId={params.countertopColorId}
+                        onMaterialChange={(countertopMaterialId) =>
+                          updateParams({ countertopMaterialId })
+                        }
+                        onColorChange={(countertopColorId) => updateParams({ countertopColorId })}
+                      />
+                    </ParameterSection>
+                  )}
 
                   <ParameterSection id="palette" eyebrow="Палитра">
                     <PaletteSelector
@@ -287,7 +294,6 @@ export function ProjectPage() {
                 disabled={!canGenerate || loading}
                 loading={starting}
                 missing={missing}
-                category={params.category}
               />
             </StickyActionBar>
           </div>
@@ -333,7 +339,6 @@ export function ProjectPage() {
               disabled={!canGenerate || loading}
               loading={starting}
               missing={missing}
-              category={params.category}
             />
           </div>
         </aside>

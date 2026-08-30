@@ -149,9 +149,20 @@ export function MeasurementsPage() {
                 : 'Лист замеров, статусы значений и история изменений живут на сервере компании.'
             }
             action={
-              <Button variant="primary" size="md" onClick={() => navigate(session ? '/projects' : '/login')}>
-                {session ? 'К проектам' : 'Войти'}
-              </Button>
+              session ? (
+                <Button variant="primary" size="md" onClick={() => navigate('/projects')}>
+                  К проектам
+                </Button>
+              ) : (
+                <div className="flex flex-col gap-2.5 sm:flex-row">
+                  <Button variant="primary" size="md" onClick={() => navigate('/register')}>
+                    Зарегистрировать компанию
+                  </Button>
+                  <Button variant="secondary" size="md" onClick={() => navigate('/login')}>
+                    Войти
+                  </Button>
+                </div>
+              )
             }
           />
         </div>

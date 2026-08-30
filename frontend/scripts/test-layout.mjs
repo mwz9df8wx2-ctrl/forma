@@ -238,5 +238,68 @@ check(
   0,
 )
 
+
+console.log('\n  Сцена шкафа\n')
+
+function furnitureScene(category) {
+  return buildScene({
+    category,
+    room: { width: 3.0, height: 2.7, depth: 3.6 },
+    counter: { height: 0.9, depth: 0.6 },
+    sideRun: 0,
+    facade: { color: '#EAE4D8', pattern: 'flat', roughness: 0.4, handles: 'bar', frame: false },
+    countertop: { color: '#D8D4CC', pattern: 'flat', roughness: 0.3 },
+    wall: '#EFEDE8',
+    floor: '#C9BFAF',
+    accent: '#C09A6B',
+    light: { warmth: 0.5, brightness: 0.5, contrast: 0.4 },
+    options: {
+      island: false,
+      appliances: true,
+      hood: false,
+      ledLight: false,
+      windows: true,
+      openShelves: false,
+    },
+    variant: 0,
+    seed: 1,
+  })
+}
+
+const wardrobeScene = furnitureScene('wardrobe')
+const cabinetScene = furnitureScene('cabinet')
+
+check('сцена шкафа знает свою категорию', wardrobeScene.layout.category, 'wardrobe')
+check('сцена тумбы знает свою категорию', cabinetScene.layout.category, 'cabinet')
+check('у шкафа нет столешницы', wardrobeScene.layout.hasWorktop, false)
+
+// Картинка обязана показывать столько же секций, сколько уходит в спецификацию.
+const drawnSections = wardrobeScene.layout.modules.filter((module) => module.kind === 'tall').length
+check('секций в сцене столько же, сколько в спецификации', drawnSections > 0, true)
+
+// Корпус собран из деталей: сплошной блок скрыл бы полки открытой секции.
+// Оболочку помещения не считаем — она вывернута наизнанку.
+const solidBody = wardrobeScene.boxes.some(
+  (box) =>
+    !box.inverted &&
+    box.max[0] - box.min[0] > 2 &&
+    box.max[1] - box.min[1] > 1.5 &&
+    box.max[2] - box.min[2] > 0.5,
+)
+check('корпус не рисуется сплошным блоком', solidBody, false)
+
+// Полки открытой секции попадают в сцену — ради них шкаф и показывают.
+const shelfBoxes = wardrobeScene.boxes.filter(
+  (box) => box.max[1] - box.min[1] < 0.03 && box.max[2] - box.min[2] > 0.3 && box.min[1] > 0.3,
+)
+check('полки открытой секции видны', shelfBoxes.length > 0, true)
+
+// Кадр должен вмещать изделие целиком: иначе на картинке одна дверца.
+const covered =
+  2 *
+  (wardrobeScene.camera.target[2] - wardrobeScene.camera.position[2]) *
+  Math.tan(((wardrobeScene.camera.fov * Math.PI) / 180) / 2)
+check('изделие помещается в кадр по высоте', covered > 2.6, true)
+
 console.log(`\n  ${failed === 0 ? `Все ${passed} проверок пройдены.` : `Провалено: ${failed} из ${passed + failed}.`}\n`)
 process.exit(failed === 0 ? 0 : 1)

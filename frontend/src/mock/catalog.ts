@@ -77,3 +77,23 @@ export const GENERATION_STAGES: GenerationStage[] = [
   { id: 'interior', label: 'Создаём кухню' },
   { id: 'render', label: 'Финализируем изображение' },
 ]
+
+/** Что именно собирается на третьем шаге — зависит от категории. */
+const OBJECT_STAGE_LABEL: Record<string, string> = {
+  kitchen: 'Создаём кухню',
+  wardrobe: 'Собираем шкаф',
+  cabinet: 'Собираем тумбу',
+}
+
+/**
+ * Этапы под категорию проекта. Подписи обязаны совпадать с тем, что
+ * действительно происходит: «создаём кухню» при сборке шкафа — мелкая ложь,
+ * из-за которой перестают верить и остальному.
+ */
+export function generationStages(category: string): GenerationStage[] {
+  return GENERATION_STAGES.map((stage) =>
+    stage.id === 'interior'
+      ? { ...stage, label: OBJECT_STAGE_LABEL[category] ?? stage.label }
+      : stage,
+  )
+}

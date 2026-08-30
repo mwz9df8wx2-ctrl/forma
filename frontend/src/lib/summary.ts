@@ -18,19 +18,28 @@ export interface SelectionRow {
 
 /** Развёрнутая сводка выбора — показывается на десктопе и на экране результата. */
 export function describeSelection(catalog: Catalog, params: ProjectParams): SelectionRow[] {
+  // У шкафа и тумбы столешницы нет: показывать выбранный кварц в сводке
+  // значит обещать клиенту то, чего в изделии не будет.
+  const hasWorktop = params.category !== 'wardrobe' && params.category !== 'cabinet'
+
   const rows: SelectionRow[] = [
     { label: 'Материал', value: findName(catalog.materials, params.materialId) ?? '—' },
     { label: 'Цвет', value: findName(catalog.colors, params.colorId) ?? '—' },
     { label: 'Фактура', value: findName(catalog.textures, params.textureId) ?? '—' },
-    {
-      label: 'Столешница',
-      value: [
-        findName(catalog.countertops.materials, params.countertopMaterialId),
-        findName(catalog.countertops.colors, params.countertopColorId)?.toLowerCase(),
-      ]
-        .filter(Boolean)
-        .join(', ') || '—',
-    },
+    ...(hasWorktop
+      ? [
+          {
+            label: 'Столешница',
+            value:
+              [
+                findName(catalog.countertops.materials, params.countertopMaterialId),
+                findName(catalog.countertops.colors, params.countertopColorId)?.toLowerCase(),
+              ]
+                .filter(Boolean)
+                .join(', ') || '—',
+          },
+        ]
+      : []),
     { label: 'Палитра', value: findName(catalog.palettes, params.paletteId) ?? '—' },
     { label: 'Стиль', value: findName(catalog.styles, params.styleId) ?? '—' },
     { label: 'Освещение', value: findName(catalog.lighting, params.lightingId) ?? '—' },

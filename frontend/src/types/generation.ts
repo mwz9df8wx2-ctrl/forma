@@ -1,3 +1,4 @@
+import type { FurnitureCategory } from '@shared/index'
 import type { Dimensions, OptionValues } from './project'
 
 export type GenerationStatus = 'queued' | 'processing' | 'completed' | 'failed'
@@ -15,6 +16,8 @@ export interface GenerationStage {
  * Prompt Builder живёт на бэкенде — фронтенд не формирует текст запроса к ИИ.
  */
 export interface GenerationRequestPayload {
+  /** Что визуализируем: кухня, шкаф или тумба. */
+  category: FurnitureCategory
   /** Планировка фронта: прямая или угловая. */
   layout_kind: 'straight' | 'corner'
   material_id: string

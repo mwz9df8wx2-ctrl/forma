@@ -110,6 +110,35 @@ describe('Аутентификация', () => {
     assert.equal(response.status, 401)
   })
 
+  it('почта не зависит от регистра', async () => {
+    const registered = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: {
+        companyName: 'Регистр',
+        name: 'Пётр',
+        email: '  Petr@Test.RU ',
+        password: 'parol12345',
+      },
+    })
+    assert.equal(registered.status, 201)
+    assert.equal(registered.body.user.email, 'petr@test.ru')
+
+    // Человек вводит почту как привык — вход обязан сработать.
+    const login = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'PETR@test.ru', password: 'parol12345' },
+    })
+    assert.equal(login.status, 201)
+  })
+
+  it('отклоняет почту без адреса', async () => {
+    const response = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Ошибка', name: 'Никто', email: 'не-почта', password: 'parol12345' },
+    })
+    assert.equal(response.status, 400)
+  })
+
   it('не отдаёт проекты без токена', async () => {
     const response = await api('/api/v1/projects')
     assert.equal(response.status, 401)

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { GENERATION_STAGES } from '@/mock/catalog'
+import { GENERATION_STAGES, generationStages } from '@/mock/catalog'
 import { useProject } from './useProject'
 
 /**
@@ -7,7 +7,9 @@ import { useProject } from './useProject'
  * список пройденных шагов и признак незавершённости.
  */
 export function useGeneration() {
-  const { generation, results, startGeneration, cancelGeneration } = useProject()
+  const { generation, results, params, startGeneration, cancelGeneration } = useProject()
+
+  const stages = useMemo(() => generationStages(params.category), [params.category])
 
   const stageIndex = useMemo(() => {
     if (!generation?.stage) return 0
@@ -20,7 +22,7 @@ export function useGeneration() {
   return {
     generation,
     results,
-    stages: GENERATION_STAGES,
+    stages,
     stageIndex,
     isRunning,
     isCompleted: generation?.status === 'completed',

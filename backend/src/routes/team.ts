@@ -20,7 +20,12 @@ import { roleSchema, ROLE_LABELS, ROLE_PERMISSIONS } from '../../../shared/src/i
 const INVITE_DAYS = 7
 
 const inviteSchema = z.object({
-  email: z.string().min(3).max(200),
+  // Тот же порядок, что при регистрации: почта хранится в нижнем регистре.
+  email: z
+    .string()
+    .max(200)
+    .transform((value) => value.trim().toLowerCase())
+    .pipe(z.email()),
   role: roleSchema,
 })
 
@@ -79,7 +84,7 @@ export function registerTeamRoutes(router: Router): void {
   router.post('/api/v1/users/invitations', async (ctx) => {
     const auth = requirePermission(ctx, 'users.manage')
     const input = inviteSchema.parse(await readJson(ctx.req))
-    const email = input.email.trim().toLowerCase()
+    const email = input.email
 
     const existing = db().prepare('SELECT id FROM users WHERE email = ?').get(email)
     if (existing) throw conflict('Пользователь с такой почтой уже зарегистрирован')

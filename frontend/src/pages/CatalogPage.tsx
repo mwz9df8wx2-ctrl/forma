@@ -103,9 +103,14 @@ export function CatalogPage() {
             title="Каталог хранится на сервере компании"
             description="Войдите, чтобы завести реальные фасады, столешницы и корпусные материалы. До входа приложение работает на встроенном демонстрационном наборе."
             action={
-              <Button variant="primary" size="lg" onClick={() => navigate('/login')}>
-                Войти
-              </Button>
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                <Button variant="primary" size="lg" onClick={() => navigate('/register')}>
+                  Зарегистрировать компанию
+                </Button>
+                <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
+                  Войти
+                </Button>
+              </div>
             }
           />
         </div>

@@ -88,3 +88,65 @@ export interface SceneSpec {
   grain: number
   seed: number
 }
+
+/** Исходные данные сцены — уже разрешённые значения, без справочников. */
+export interface SceneInput {
+  /** Что строим. От категории зависит вся геометрия сцены. */
+  category?: 'kitchen' | 'wardrobe' | 'cabinet'
+  room: { width: number; height: number; depth: number }
+  counter: { height: number; depth: number }
+  /**
+   * Длина фронта вдоль боковой стены, м. 0 — прямая кухня.
+   * Отсчёт от задней стены, угол принадлежит основному фронту.
+   */
+  sideRun?: number
+  facade: {
+    color: string
+    pattern: PatternKind
+    roughness: number
+    handles: 'hidden' | 'bar' | 'knob'
+    frame: boolean
+    /** Человеческое название материала и цвета — попадает в спецификацию. */
+    label?: string
+  }
+  countertop: { color: string; pattern: PatternKind; roughness: number }
+  wall: string
+  floor: string
+  accent: string
+  light: { warmth: number; brightness: number; contrast: number }
+  options: {
+    island: boolean
+    appliances: boolean
+    /** Вытяжка рисуется только по явному запросу. */
+    hood: boolean
+    ledLight: boolean
+    windows: boolean
+    openShelves: boolean
+  }
+  variant: number
+  seed: number
+  /**
+   * Вписывание в фотографию: стены, пол, потолок и окно не рисуются,
+   * но продолжают освещать сцену и принимать тень.
+   */
+  compositing?: boolean
+  /** Камера, рассчитанная по фотографии. */
+  camera?: {
+    position: [number, number, number]
+    target: [number, number, number]
+    fov: number
+  }
+  /** Цвета реальных поверхностей — для корректного переотражённого света. */
+  surfaces?: { wall: string; floor: string; ceiling: string }
+  /**
+   * Окно в координатах сцены. Задаётся, когда положение окна взято
+   * с фотографии: свет должен приходить оттуда же, откуда на снимке.
+   * null — окна в кадре нет.
+   */
+  windowRect?: { x0: number; y0: number; x1: number; y1: number } | null
+  /**
+   * preview — меньше выборок света: расчёт в браузере должен укладываться
+   * в несколько секунд. high — качество для изображений, отрисованных заранее.
+   */
+  quality?: 'preview' | 'high'
+}

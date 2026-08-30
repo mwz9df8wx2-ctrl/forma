@@ -18,6 +18,7 @@ import { PackagePage } from '@/pages/PackagePage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { ProjectPage } from '@/pages/ProjectPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { ResultsPage } from '@/pages/ResultsPage'
 
 function ScrollToTop() {
@@ -68,6 +69,7 @@ export function App() {
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
                     <Route path="/invite" element={<InvitePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>

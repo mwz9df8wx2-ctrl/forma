@@ -1,101 +1,18 @@
-import type { AreaLight, PanelLayout, PatternKind, RenderBox, RenderMaterial, SceneSpec } from './types.ts'
+import type { AreaLight, RenderBox, SceneSpec, SceneInput } from './types.ts'
+import { clamp, createPalette, lightColor } from './palette.ts'
+import { buildWardrobeScene } from './wardrobeScene.ts'
 import { buildLayout } from '../drawings/layout.ts'
 import type { FurnitureLayout } from '../drawings/types.ts'
 
-/** Исходные данные сцены — уже разрешённые значения, без справочников. */
-export interface SceneInput {
-  room: { width: number; height: number; depth: number }
-  counter: { height: number; depth: number }
-  /**
-   * Длина фронта вдоль боковой стены, м. 0 — прямая кухня.
-   * Отсчёт от задней стены, угол принадлежит основному фронту.
-   */
-  sideRun?: number
-  facade: {
-    color: string
-    pattern: PatternKind
-    roughness: number
-    handles: 'hidden' | 'bar' | 'knob'
-    frame: boolean
-    /** Человеческое название материала и цвета — попадает в спецификацию. */
-    label?: string
-  }
-  countertop: { color: string; pattern: PatternKind; roughness: number }
-  wall: string
-  floor: string
-  accent: string
-  light: { warmth: number; brightness: number; contrast: number }
-  options: {
-    island: boolean
-    appliances: boolean
-    /** Вытяжка рисуется только по явному запросу. */
-    hood: boolean
-    ledLight: boolean
-    windows: boolean
-    openShelves: boolean
-  }
-  variant: number
-  seed: number
-  /**
-   * Вписывание в фотографию: стены, пол, потолок и окно не рисуются,
-   * но продолжают освещать сцену и принимать тень.
-   */
-  compositing?: boolean
-  /** Камера, рассчитанная по фотографии. */
-  camera?: {
-    position: [number, number, number]
-    target: [number, number, number]
-    fov: number
-  }
-  /** Цвета реальных поверхностей — для корректного переотражённого света. */
-  surfaces?: { wall: string; floor: string; ceiling: string }
-  /**
-   * Окно в координатах сцены. Задаётся, когда положение окна взято
-   * с фотографии: свет должен приходить оттуда же, откуда на снимке.
-   * null — окна в кадре нет.
-   */
-  windowRect?: { x0: number; y0: number; x1: number; y1: number } | null
-  /**
-   * preview — меньше выборок света: расчёт в браузере должен укладываться
-   * в несколько секунд. high — качество для изображений, отрисованных заранее.
-   */
-  quality?: 'preview' | 'high'
-}
-
-const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
-
-function srgbToLinear(channel: number): number {
-  return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
-}
-
-/** Цвет каталога → линейное альбедо в физически осмысленном диапазоне. */
-function albedo(hex: string, min = 0.035, max = 0.87): [number, number, number] {
-  const normalized = hex.replace('#', '')
-  const full =
-    normalized.length === 3
-      ? normalized
-          .split('')
-          .map((c) => c + c)
-          .join('')
-      : normalized
-  const r = srgbToLinear(Number.parseInt(full.slice(0, 2), 16) / 255)
-  const g = srgbToLinear(Number.parseInt(full.slice(2, 4), 16) / 255)
-  const b = srgbToLinear(Number.parseInt(full.slice(4, 6), 16) / 255)
-  return [clamp(r, min, max), clamp(g, min, max), clamp(b, min, max)]
-}
-
-/** Цвет источника по цветовой температуре, нормированный по яркости. */
-function lightColor(warmth: number): [number, number, number] {
-  const cool: [number, number, number] = [0.86, 0.92, 1.0]
-  const warm: [number, number, number] = [1.0, 0.78, 0.55]
-  return [
-    cool[0] + (warm[0] - cool[0]) * warmth,
-    cool[1] + (warm[1] - cool[1]) * warmth,
-    cool[2] + (warm[2] - cool[2]) * warmth,
-  ]
-}
+export type { SceneInput } from './types.ts'
 
 export function buildScene(input: SceneInput): SceneSpec {
+  // Шкаф и тумба — своя геометрия. Палитра, свет и постобработка общие:
+  // один артикул каталога обязан выглядеть одинаково в любой категории.
+  if (input.category === 'wardrobe' || input.category === 'cabinet') {
+    return buildWardrobeScene(input)
+  }
+
   const W = clamp(input.room.width, 2.4, 6.4)
   const H = clamp(input.room.height, 2.35, 3.5)
   const D = clamp(input.room.depth, 3.1, 5.2)
@@ -109,11 +26,9 @@ export function buildScene(input: SceneInput): SceneSpec {
   const warm = input.light.warmth
   const brightness = input.light.brightness
 
-  const materials: RenderMaterial[] = []
   const boxes: RenderBox[] = []
   const lights: AreaLight[] = []
 
-  const addMaterial = (material: RenderMaterial) => materials.push(material) - 1
   const compositing = input.compositing === true
   const addBox = (
     min: [number, number, number],
@@ -173,124 +88,29 @@ export function buildScene(input: SceneInput): SceneSpec {
     return segments
   }
 
-  const facadePanel = (doorWidth: number, upper = false): PanelLayout => ({
-    doorWidth,
-    gap: 0.005,
-    handle: input.facade.handles,
-    frame: input.facade.frame,
-    upper,
-  })
-
   // --- Материалы ---
-  const wallMaterial = addMaterial({
-    albedo: albedo(input.surfaces?.wall ?? input.wall, 0.18, 0.85),
-    roughness: 0.92,
-    metallic: 0,
-    pattern: 'wall',
-    scale: 1,
-  })
-  const ceilingMaterial = addMaterial({
-    albedo: input.surfaces ? albedo(input.surfaces.ceiling, 0.3, 0.9) : [0.82, 0.81, 0.79],
-    roughness: 0.95,
-    metallic: 0,
-    pattern: 'wall',
-    scale: 1,
-  })
-  const floorMaterial = addMaterial({
-    albedo: albedo(input.surfaces?.floor ?? input.floor, 0.05, 0.65),
-    roughness: 0.34,
-    metallic: 0,
-    pattern: 'floor',
-    scale: 1,
-  })
-  const facadeBase = addMaterial({
-    albedo: albedo(input.facade.color),
-    roughness: input.facade.roughness,
-    metallic: 0,
-    pattern: input.facade.pattern,
-    scale: 1,
-    panel: facadePanel(0.6),
-  })
-  const facadeUpper = addMaterial({
-    albedo: albedo(input.facade.color),
-    roughness: input.facade.roughness,
-    metallic: 0,
-    pattern: input.facade.pattern,
-    scale: 1,
-    panel: facadePanel(0.5, true),
-  })
-  const facadeTall = addMaterial({
-    albedo: albedo(input.facade.color),
-    roughness: input.facade.roughness,
-    metallic: 0,
-    pattern: input.facade.pattern,
-    scale: 1,
-    panel: facadePanel(0.65),
-  })
-  const counterMaterial = addMaterial({
-    albedo: albedo(input.countertop.color, 0.05, 0.85),
-    roughness: input.countertop.roughness,
-    metallic: 0,
-    pattern: input.countertop.pattern,
-    scale: 1,
-  })
-  const backsplashMaterial = addMaterial({
-    albedo: albedo(input.countertop.color, 0.08, 0.86),
-    roughness: Math.min(0.4, input.countertop.roughness + 0.06),
-    metallic: 0,
-    pattern: input.countertop.pattern === 'wood' ? 'tile' : input.countertop.pattern,
-    scale: 1,
-  })
-  const toeMaterial = addMaterial({
-    albedo: [0.035, 0.035, 0.037],
-    roughness: 0.6,
-    metallic: 0,
-    pattern: 'paint',
-    scale: 1,
-  })
-  const metalMaterial = addMaterial({
-    albedo: [0.6, 0.61, 0.62],
-    roughness: 0.24,
-    metallic: 0.9,
-    pattern: 'metal',
-    scale: 1,
-  })
-  const darkGlassMaterial = addMaterial({
-    albedo: [0.04, 0.042, 0.045],
-    roughness: 0.3,
-    metallic: 0.3,
-    pattern: 'dark-glass',
-    scale: 1,
-  })
-  const shelfMaterial = addMaterial({
-    albedo: albedo(input.accent, 0.05, 0.7),
-    roughness: 0.4,
-    metallic: 0,
-    pattern: 'wood',
-    scale: 1,
-  })
-
-  const sky = lightColor(warm * 0.55)
-  const windowGlow = 2.6 + brightness * 2.6
-  const windowMaterial = addMaterial({
-    albedo: [1, 1, 1],
-    roughness: 1,
-    metallic: 0,
-    pattern: 'paint',
-    scale: 1,
-    emission: [sky[0] * windowGlow, sky[1] * windowGlow, sky[2] * windowGlow],
-  })
-
-  const lampTone = lightColor(Math.max(warm, 0.6))
-  const lampGlow = 5 + brightness * 4
-  const lampMaterial = addMaterial({
-    albedo: [1, 1, 1],
-    roughness: 1,
-    metallic: 0,
-    pattern: 'paint',
-    scale: 1,
-    emission: [lampTone[0] * lampGlow, lampTone[1] * lampGlow, lampTone[2] * lampGlow],
-  })
+  // Палитра общая с другими категориями мебели: один артикул каталога
+  // обязан выглядеть одинаково и на кухне, и на шкафу.
+  const palette = createPalette(input)
+  const materials = palette.list
+  const {
+    wall: wallMaterial,
+    ceiling: ceilingMaterial,
+    floor: floorMaterial,
+    facadeBase,
+    facadeUpper,
+    facadeTall,
+    counter: counterMaterial,
+    backsplash: backsplashMaterial,
+    toe: toeMaterial,
+    metal: metalMaterial,
+    darkGlass: darkGlassMaterial,
+    shelf: shelfMaterial,
+    window: windowMaterial,
+    lamp: lampMaterial,
+    sky,
+    lampTone,
+  } = palette
 
   // --- Оболочка помещения ---
   addRoomBox([-0.03, -0.2, -0.03], [W + 0.03, H + 0.2, D + 0.03], wallMaterial, true)

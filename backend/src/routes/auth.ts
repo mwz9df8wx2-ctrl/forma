@@ -12,15 +12,28 @@ import { can, permissionDenialReason, type Permission } from '../../../shared/sr
 
 const SESSION_DAYS = 30
 
+/**
+ * Почта приводится к нижнему регистру и на регистрации, и на входе.
+ * Иначе «Ivan@Mail.ru» и «ivan@mail.ru» — разные учётные записи, и человек
+ * не может войти под тем, что сам же и ввёл.
+ */
+const emailField = z
+  .string()
+  .max(200)
+  // Сначала приводим к нормальному виду, потом проверяем:люди вставляют почту
+  // из письма вместе с пробелами, и отказывать из-за этого незачем.
+  .transform((value) => value.trim().toLowerCase())
+  .pipe(z.email())
+
 const registerSchema = z.object({
-  companyName: z.string().min(2).max(120),
-  name: z.string().min(2).max(120),
-  email: z.email(),
+  companyName: z.string().min(2).max(120).transform((value) => value.trim()),
+  name: z.string().min(2).max(120).transform((value) => value.trim()),
+  email: emailField,
   password: z.string().min(8).max(200),
 })
 
 const loginSchema = z.object({
-  email: z.email(),
+  email: emailField,
   password: z.string().min(1),
 })
 

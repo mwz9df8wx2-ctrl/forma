@@ -59,15 +59,24 @@ export function AccountCard() {
               </p>
             </div>
           )}
-          <Button
-            variant="primary"
-            size="md"
-            className="mt-4"
-            disabled={!serverOnline}
-            onClick={() => navigate('/login')}
-          >
-            Войти
-          </Button>
+          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+            <Button
+              variant="primary"
+              size="md"
+              disabled={!serverOnline}
+              onClick={() => navigate('/register')}
+            >
+              Зарегистрировать компанию
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={!serverOnline}
+              onClick={() => navigate('/login')}
+            >
+              Войти
+            </Button>
+          </div>
         </>
       )}
     </section>
