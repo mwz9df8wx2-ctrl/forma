@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { priceUnitSchema } from './estimate.ts'
 
 /**
  * Каталог компании.
@@ -30,7 +31,11 @@ export const CATALOG_TYPE_LABELS: Record<CatalogType, string> = {
   lighting: 'Освещение',
 }
 
-const money = z.number().min(0).max(10_000_000).nullable()
+/**
+ * Деньги — целые копейки. Дробные рубли в смете из сотни позиций
+ * расходятся с накладной на копейки, а объяснять это клиенту нечем.
+ */
+const kopecks = z.int().min(0).max(1_000_000_000).nullable()
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Ожидается цвет в формате #RRGGBB')
 
 /** Фасад: то, что клиент видит и выбирает в первую очередь. */
@@ -111,8 +116,12 @@ export const catalogItemInputSchema = z.object({
   type: catalogTypeSchema,
   sku: z.string().max(80).default(''),
   name: z.string().min(1).max(200),
-  purchasePrice: money.default(null),
-  salePrice: money.default(null),
+  /** Закупочная цена за единицу, копейки. */
+  purchasePriceKopecks: kopecks.default(null),
+  /** Цена продажи за единицу, копейки. */
+  salePriceKopecks: kopecks.default(null),
+  /** За что назначена цена: штука, квадратный метр, погонный метр, лист. */
+  priceUnit: priceUnitSchema.default('piece'),
   active: z.boolean().default(true),
   /** Демонстрационная запись: её видно, но она не выдаётся за реальную. */
   demo: z.boolean().default(false),

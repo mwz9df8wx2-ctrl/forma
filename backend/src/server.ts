@@ -13,6 +13,7 @@ import { registerCatalogRoutes } from './routes/catalog.ts'
 import { registerAiRoutes } from './routes/ai.ts'
 import { registerGenerationRoutes } from './routes/generations.ts'
 import { registerMeasurementRoutes } from './routes/measurements.ts'
+import { registerEstimateRoutes } from './routes/estimates.ts'
 import { ensurePlans } from './services/plans.ts'
 import { recoverJobs, startWorker } from './services/jobs.ts'
 
@@ -37,6 +38,7 @@ registerCatalogRoutes(router)
 registerAiRoutes(router)
 registerGenerationRoutes(router)
 registerMeasurementRoutes(router)
+registerEstimateRoutes(router)
 
 export function createApp() {
   return createServer(async (req, res) => {

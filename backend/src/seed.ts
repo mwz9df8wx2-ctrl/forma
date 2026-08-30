@@ -73,7 +73,18 @@ db()
   .run(revisionId, projectId, userId, JSON.stringify(spec), now)
 
 // Демонстрационный каталог: помечен DEMO, чтобы его не приняли за реальный.
-const catalogSeed: Array<{ type: string; name: string; attributes: Record<string, unknown> }> = [
+/**
+ * Цены — целыми копейками и за свою единицу: фасады и корпус за квадратный
+ * метр, столешница за погонный, фурнитура за штуку. Без них смета считается,
+ * но честно показывает, каких позиций не хватает.
+ */
+const catalogSeed: Array<{
+  type: string
+  name: string
+  attributes: Record<string, unknown>
+  priceKopecks?: number
+  priceUnit?: string
+}> = [
   {
     type: 'facade',
     name: 'DEMO · Эмаль жемчужная матовая',
@@ -81,6 +92,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'Базовая', material: 'enamel', colorName: 'Жемчужный',
       colorHex: '#EAE4D8', finish: 'matte', thicknessMm: 19, handleless: true,
     },
+    priceKopecks: 450000,
+    priceUnit: 'square_metre',
   },
   {
     type: 'facade',
@@ -89,6 +102,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'Базовая', material: 'enamel', colorName: 'Графит',
       colorHex: '#4A4C50', finish: 'matte', thicknessMm: 19, handleless: true,
     },
+    priceKopecks: 470000,
+    priceUnit: 'square_metre',
   },
   {
     type: 'facade',
@@ -97,6 +112,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'Дерево', material: 'veneer', colorName: 'Натуральный дуб',
       colorHex: '#C09A6B', finish: 'wood', thicknessMm: 19, handleless: false,
     },
+    priceKopecks: 690000,
+    priceUnit: 'square_metre',
   },
   {
     type: 'countertop',
@@ -105,6 +122,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'Кварц', material: 'quartz', decor: 'Светлый камень',
       colorHex: '#DED8CC', actualThicknessMm: 20, visualThicknessMm: 38, edgeProfile: 'R3',
     },
+    priceKopecks: 780000,
+    priceUnit: 'linear_metre',
   },
   {
     type: 'countertop',
@@ -113,6 +132,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'Камень', material: 'stone', decor: 'Мрамор',
       colorHex: '#EAE7E1', actualThicknessMm: 20, visualThicknessMm: 50, edgeProfile: 'R3',
     },
+    priceKopecks: 1240000,
+    priceUnit: 'linear_metre',
   },
   {
     type: 'countertop',
@@ -121,6 +142,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', collection: 'HPL', material: 'hpl', decor: 'Графит',
       colorHex: '#4B4C4E', actualThicknessMm: 12, visualThicknessMm: 12, edgeProfile: 'R3',
     },
+    priceKopecks: 390000,
+    priceUnit: 'linear_metre',
   },
   {
     type: 'carcass',
@@ -129,6 +152,8 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', decor: 'Белый', material: 'chipboard', thicknessMm: 16,
       backPanelThicknessMm: 4, visibleEdgeMm: 1, hiddenEdgeMm: 0.4,
     },
+    priceKopecks: 95000,
+    priceUnit: 'square_metre',
   },
   {
     type: 'carcass',
@@ -137,6 +162,64 @@ const catalogSeed: Array<{ type: string; name: string; attributes: Record<string
       brand: 'DEMO', decor: 'Серый', material: 'chipboard', thicknessMm: 16,
       backPanelThicknessMm: 4, visibleEdgeMm: 1, hiddenEdgeMm: 0.4,
     },
+    priceKopecks: 98000,
+    priceUnit: 'square_metre',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Конфирмат 7 × 50',
+    attributes: { brand: 'DEMO', kind: 'confirmat', size: '7 × 50', unit: 'шт' },
+    priceKopecks: 350,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Петля накладная 110°',
+    attributes: { brand: 'DEMO', kind: 'hinge', size: '110°', unit: 'шт' },
+    priceKopecks: 12000,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Направляющая шариковая 500 мм',
+    attributes: { brand: 'DEMO', kind: 'slide', size: '500 мм', unit: 'пара' },
+    priceKopecks: 46000,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Ножка регулируемая 100 мм',
+    attributes: { brand: 'DEMO', kind: 'leg', size: '100 мм', unit: 'шт' },
+    priceKopecks: 4500,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Навес верхнего шкафа',
+    attributes: { brand: 'DEMO', kind: 'bracket', size: 'регулируемый', unit: 'компл.' },
+    priceKopecks: 9800,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Стяжка столешницы M6 × 65',
+    attributes: { brand: 'DEMO', kind: 'bolt', size: 'M6 × 65', unit: 'шт' },
+    priceKopecks: 5200,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Саморез 4 × 30',
+    attributes: { brand: 'DEMO', kind: 'screw', size: '4 × 30', unit: 'шт' },
+    priceKopecks: 180,
+    priceUnit: 'piece',
+  },
+  {
+    type: 'hardware',
+    name: 'DEMO · Ручка-профиль 160 мм',
+    attributes: { brand: 'DEMO', kind: 'handle', size: '160 мм', unit: 'шт' },
+    priceKopecks: 34000,
+    priceUnit: 'piece',
   },
 ]
 
@@ -144,10 +227,21 @@ for (const item of catalogSeed) {
   db()
     .prepare(
       `INSERT INTO catalog_items
-         (id, company_id, type, sku, name, attributes, active, demo, created_at, updated_at)
-       VALUES (?, ?, ?, '', ?, ?, 1, 1, ?, ?)`,
+         (id, company_id, type, sku, name, attributes, price_unit,
+          sale_price_kopecks, active, demo, created_at, updated_at)
+       VALUES (?, ?, ?, '', ?, ?, ?, ?, 1, 1, ?, ?)`,
     )
-    .run(createId('cat'), companyId, item.type, item.name, JSON.stringify(item.attributes), now, now)
+    .run(
+      createId('cat'),
+      companyId,
+      item.type,
+      item.name,
+      JSON.stringify(item.attributes),
+      item.priceUnit ?? 'square_metre',
+      item.priceKopecks ?? null,
+      now,
+      now,
+    )
 }
 
 db()

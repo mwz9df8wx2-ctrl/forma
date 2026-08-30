@@ -132,6 +132,8 @@ export interface HardwareLine {
   count: number
   unit: string
   note?: string
+  /** Тип записи каталога: по нему строка сметы находит цену. */
+  kind: 'confirmat' | 'hinge' | 'slide' | 'handle' | 'leg' | 'bracket' | 'bolt' | 'screw'
 }
 
 /** Ведомость крепежа и фурнитуры на весь проект. */
@@ -171,33 +173,41 @@ export function hardwareTotals(
   legs += baseRows * rules.legsPerRow
 
   const lines: HardwareLine[] = [
-    { name: `Конфирмат ${rules.confirmatSize}`, count: confirmats, unit: 'шт' },
-    { name: 'Петля 110°', count: hinges110, unit: 'шт' },
+    { name: `Конфирмат ${rules.confirmatSize}`, count: confirmats, unit: 'шт', kind: 'confirmat' },
+    { name: 'Петля 110°', count: hinges110, unit: 'шт', kind: 'hinge' },
   ]
   if (hinges165 > 0) {
-    lines.push({ name: 'Петля 165° (угловой фасад)', count: hinges165, unit: 'шт' })
+    lines.push({ name: 'Петля 165° (угловой фасад)', count: hinges165, unit: 'шт', kind: 'hinge' })
   }
   if (slides > 0) {
     lines.push({
       name: `Направляющая шариковая ${[...slideLengths].join('/')} мм`,
       count: slides,
       unit: 'пар',
+      kind: 'slide',
     })
   }
-  if (handles > 0) lines.push({ name: 'Ручка', count: handles, unit: 'шт' })
+  if (handles > 0) lines.push({ name: 'Ручка', count: handles, unit: 'шт', kind: 'handle' })
   lines.push(
-    { name: `Ножка регулируемая ${rules.legHeight} мм`, count: legs, unit: 'шт' },
-    { name: 'Клипса крепления цоколя', count: clips, unit: 'шт' },
-    { name: 'Навес верхнего шкафа', count: bracketSets, unit: 'компл.' },
+    { name: `Ножка регулируемая ${rules.legHeight} мм`, count: legs, unit: 'шт', kind: 'leg' },
+    { name: 'Клипса крепления цоколя', count: clips, unit: 'шт', kind: 'bracket' },
+    { name: 'Навес верхнего шкафа', count: bracketSets, unit: 'компл.', kind: 'bracket' },
     {
       name: `Стяжка столешницы ${rules.worktopBoltSize}`,
       count: options.worktopJoints * rules.worktopBoltsPerJoint,
       unit: 'шт',
       note: options.worktopJoints > 0 ? `${rules.worktopBoltsPerJoint} на каждый стык` : undefined,
+      kind: 'bolt',
     },
-    { name: 'Саморез 4 × 16', count: screws16, unit: 'шт', note: 'ориентировочно' },
-    { name: 'Саморез 4 × 30', count: screws30, unit: 'шт', note: 'ориентировочно' },
-    { name: 'Дюбель/анкер для навески', count: bracketSets * 2, unit: 'шт', note: 'по типу стены' },
+    { name: 'Саморез 4 × 16', count: screws16, unit: 'шт', note: 'ориентировочно', kind: 'screw' },
+    { name: 'Саморез 4 × 30', count: screws30, unit: 'шт', note: 'ориентировочно', kind: 'screw' },
+    {
+      name: 'Дюбель/анкер для навески',
+      count: bracketSets * 2,
+      unit: 'шт',
+      note: 'по типу стены',
+      kind: 'screw',
+    },
   )
 
   return lines.filter((line) => line.count > 0)

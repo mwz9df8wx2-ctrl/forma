@@ -253,3 +253,62 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Печать техпакета.
+ *
+ * PDF делает браузер: он сам вкладывает шрифт, поэтому кириллица выходит
+ * настоящим текстом, который можно выделить и найти, а не картинкой.
+ * Своего генератора PDF со сборкой подмножества шрифта здесь не нужно.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  /* Навигация, кнопки и подсказки на листе не нужны. */
+  .print-hide,
+  nav,
+  aside,
+  header button,
+  button {
+    display: none !important;
+  }
+
+  .print-sheet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-plain {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  th,
+  td {
+    border: 1px solid #999;
+    padding: 3pt 4pt;
+    text-align: left;
+  }
+}

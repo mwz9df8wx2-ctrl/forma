@@ -129,8 +129,11 @@ CREATE TABLE IF NOT EXISTS catalog_items (
   sku             TEXT NOT NULL DEFAULT '',
   name            TEXT NOT NULL,
   attributes      TEXT NOT NULL,
-  purchase_price  REAL,
-  sale_price      REAL,
+  -- Цены целыми копейками. REAL в деньгах теряет копейки на округлении,
+  -- а смета из тысячи позиций расходится с накладной.
+  price_unit               TEXT NOT NULL DEFAULT 'piece',
+  purchase_price_kopecks   INTEGER,
+  sale_price_kopecks       INTEGER,
   active          INTEGER NOT NULL DEFAULT 1,
   demo            INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL,
@@ -266,3 +269,19 @@ CREATE TABLE IF NOT EXISTS project_messages (
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_project ON project_messages(project_id, created_at);
+
+-- Смета с зафиксированными ценами.
+-- Цены меняются, а согласованная с клиентом смета — нет: снимок хранится
+-- целиком, чтобы через полгода было видно, из чего сложилась сумма.
+CREATE TABLE IF NOT EXISTS estimates (
+  id             TEXT PRIMARY KEY,
+  company_id     TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  revision_id    TEXT NOT NULL REFERENCES project_revisions(id),
+  created_by     TEXT NOT NULL REFERENCES users(id),
+  lines          TEXT NOT NULL,
+  totals         TEXT NOT NULL,
+  markup_percent INTEGER NOT NULL DEFAULT 0,
+  created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS estimates_project ON estimates(project_id, created_at DESC);

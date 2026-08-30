@@ -979,3 +979,142 @@ describe('Замеры и разбор текста', () => {
     assert.equal(response.body.revision.spec.dimensions.counterDepth, 620)
   })
 })
+
+// --- M5: смета и снимок цен -------------------------------------------------
+
+describe('Смета', () => {
+  let token = ''
+  let projectId = ''
+  let facadeId = ''
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Смета', name: 'Сметчик', email: 'estimate@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+    projectId = await makeReadyProject(token, 'Кухня — смета')
+
+    const facade = await api('/api/v1/catalog', {
+      method: 'POST',
+      token,
+      body: {
+        type: 'facade',
+        name: 'Эмаль жемчужная',
+        // 4 500 ₽ за м² — целыми копейками.
+        salePriceKopecks: 450_000,
+        priceUnit: 'square_metre',
+        attributes: {
+          material: 'enamel',
+          colorName: 'Жемчуг',
+          colorHex: '#EDE7DD',
+          finish: 'matte',
+          thicknessMm: 19,
+        },
+      },
+    })
+    facadeId = facade.body.item.id
+  })
+
+  it('считает по ценам каталога и сохраняет снимок', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/estimates`, {
+      method: 'POST',
+      token,
+      body: {
+        markupPercent: 30,
+        lines: [
+          {
+            section: 'facade',
+            catalogItemId: facadeId,
+            name: 'Фасады',
+            unit: 'square_metre',
+            // 2,5 м²
+            quantityMilli: 2500,
+            note: '',
+          },
+        ],
+      },
+    })
+    assert.equal(response.status, 201)
+
+    const estimate = response.body.estimate
+    assert.equal(estimate.lines[0].unitPriceKopecks, 450_000)
+    // 2,5 × 4500 ₽ = 11 250 ₽
+    assert.equal(estimate.lines[0].totalKopecks, 1_125_000)
+    assert.equal(estimate.totals.materialsKopecks, 1_125_000)
+    assert.equal(estimate.totals.markupKopecks, 337_500)
+    assert.equal(estimate.totals.totalKopecks, 1_462_500)
+    assert.equal(estimate.totals.missingPrices, 0)
+  })
+
+  it('помечает позицию без цены и не завышает сумму', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/estimates`, {
+      method: 'POST',
+      token,
+      body: {
+        markupPercent: 0,
+        lines: [
+          { section: 'facade', catalogItemId: facadeId, name: 'Фасады', unit: 'square_metre', quantityMilli: 1000, note: '' },
+          { section: 'hardware', catalogItemId: null, name: 'Петля 110°', unit: 'piece', quantityMilli: 12000, note: '' },
+        ],
+      },
+    })
+    const estimate = response.body.estimate
+    assert.equal(estimate.totals.missingPrices, 1)
+    assert.equal(estimate.lines[1].priceMissing, true)
+    assert.equal(estimate.lines[1].totalKopecks, 0)
+    assert.equal(estimate.totals.totalKopecks, 450_000)
+  })
+
+  it('цена из запроса игнорируется', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/estimates`, {
+      method: 'POST',
+      token,
+      body: {
+        markupPercent: 0,
+        lines: [
+          {
+            section: 'facade',
+            catalogItemId: facadeId,
+            name: 'Фасады',
+            unit: 'square_metre',
+            quantityMilli: 1000,
+            note: '',
+            // Попытка назначить свою цену из браузера.
+            unitPriceKopecks: 1,
+            totalKopecks: 1,
+          },
+        ],
+      },
+    })
+    assert.equal(response.body.estimate.lines[0].unitPriceKopecks, 450_000)
+    assert.equal(response.body.estimate.lines[0].totalKopecks, 450_000)
+  })
+
+  it('изменение цены в каталоге не трогает сохранённую смету', async () => {
+    const before = await api(`/api/v1/projects/${projectId}/estimates`, { token })
+    const saved = before.body.estimates[0]
+
+    await api(`/api/v1/catalog/${facadeId}`, {
+      method: 'PATCH',
+      token,
+      body: { salePriceKopecks: 900_000 },
+    })
+
+    const after = await api(`/api/v1/estimates/${saved.id}`, { token })
+    assert.equal(after.body.estimate.lines[0].unitPriceKopecks, 450_000)
+    assert.equal(after.body.estimate.totals.totalKopecks, saved.totals.totalKopecks)
+  })
+
+  it('чужая смета не отдаётся', async () => {
+    const other = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Чужая смета', name: 'Гость', email: 'alien-estimate@test.ru', password: 'parol12345' },
+    })
+    const list = await api(`/api/v1/projects/${projectId}/estimates`, { token })
+    const response = await api(`/api/v1/estimates/${list.body.estimates[0].id}`, {
+      token: other.body.token,
+    })
+    assert.equal(response.status, 404)
+  })
+})

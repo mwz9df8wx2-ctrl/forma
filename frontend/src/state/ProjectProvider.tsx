@@ -6,11 +6,11 @@ import {
   subscribeToGeneration,
   uploadProjectPhoto,
 } from '@/api'
-import { saveSpec } from '@/api/server/projects'
+import { getProject, saveSpec } from '@/api/server/projects'
 import { enqueueGeneration, watchJob, type JobWatcher } from '@/api/server/billing'
 import { jobToGeneration, loadJobResults, releaseResults } from '@/lib/serverGeneration'
 import { useBilling } from '@/hooks/useBilling'
-import { paramsToSpec } from '@/lib/specMapping'
+import { paramsToSpec, specToParams } from '@/lib/specMapping'
 import { useToast } from '@/hooks/useToast'
 import { nearestByHex } from '@/lib/color'
 import { formatDate } from '@/lib/format'
@@ -91,6 +91,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => () => stopWatching(), [stopWatching])
+
+  /**
+   * Восстановление проекта после перезагрузки страницы.
+   *
+   * Параметры живут в памяти вкладки, а источник правды — на сервере.
+   * Без этого переход по прямой ссылке на чертежи или техпакет открывал бы
+   * пустой проект, хотя спецификация давно сохранена.
+   */
+  const restoring = useRef<string | null>(null)
+  useEffect(() => {
+    const target = serverProject?.id ?? null
+    // Проект уже открыт в этой вкладке — восстанавливать нечего.
+    if (!target || project || restoring.current === target) return
+    restoring.current = target
+
+    // Ответ не отменяется по размонтированию эффекта: в режиме строгой
+    // проверки React монтирует его дважды, и отмена оставила бы проект пустым.
+    void getProject(target)
+      .then(({ project: remote, revision }) => {
+        // Пользователь мог переключить проект, пока шёл запрос.
+        if (restoring.current !== target || !revision) return
+        setTitle(remote.title)
+        setParams((current) => specToParams(revision.spec, current))
+      })
+      .catch(() => {
+        // Проект мог быть удалён на другом устройстве — дадим попробовать снова.
+        restoring.current = null
+      })
+  }, [serverProject, project])
 
   const confirmPhoto = useCallback(
     async (nextPhoto: ProjectPhoto) => {

@@ -26,8 +26,9 @@ interface CatalogRow {
   sku: string
   name: string
   attributes: string
-  purchasePrice: number | null
-  salePrice: number | null
+  purchasePriceKopecks: number | null
+  salePriceKopecks: number | null
+  priceUnit: string
   active: number
   demo: number
   createdAt: string
@@ -36,7 +37,8 @@ interface CatalogRow {
 
 const COLUMNS = `
   id, company_id AS companyId, type, sku, name, attributes,
-  purchase_price AS purchasePrice, sale_price AS salePrice,
+  purchase_price_kopecks AS purchasePriceKopecks, sale_price_kopecks AS salePriceKopecks,
+  price_unit AS priceUnit,
   active, demo, created_at AS createdAt, updated_at AS updatedAt
 `
 
@@ -48,8 +50,9 @@ function present(row: CatalogRow) {
     sku: row.sku,
     name: row.name,
     attributes: JSON.parse(row.attributes),
-    purchasePrice: row.purchasePrice,
-    salePrice: row.salePrice,
+    purchasePriceKopecks: row.purchasePriceKopecks,
+    salePriceKopecks: row.salePriceKopecks,
+    priceUnit: row.priceUnit,
     active: row.active === 1,
     demo: row.demo === 1,
     createdAt: row.createdAt,
@@ -94,8 +97,9 @@ export function registerCatalogRoutes(router: Router): void {
     db()
       .prepare(
         `INSERT INTO catalog_items
-           (id, company_id, type, sku, name, attributes, purchase_price, sale_price, active, demo, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, company_id, type, sku, name, attributes, purchase_price_kopecks,
+            sale_price_kopecks, price_unit, active, demo, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -104,8 +108,9 @@ export function registerCatalogRoutes(router: Router): void {
         input.sku,
         input.name,
         JSON.stringify(attributes),
-        input.purchasePrice,
-        input.salePrice,
+        input.purchasePriceKopecks,
+        input.salePriceKopecks,
+        input.priceUnit,
         input.active ? 1 : 0,
         input.demo ? 1 : 0,
         now,
@@ -138,13 +143,17 @@ export function registerCatalogRoutes(router: Router): void {
       sets.push('sku = ?')
       values.push(input.sku)
     }
-    if (input.purchasePrice !== undefined) {
-      sets.push('purchase_price = ?')
-      values.push(input.purchasePrice)
+    if (input.purchasePriceKopecks !== undefined) {
+      sets.push('purchase_price_kopecks = ?')
+      values.push(input.purchasePriceKopecks)
     }
-    if (input.salePrice !== undefined) {
-      sets.push('sale_price = ?')
-      values.push(input.salePrice)
+    if (input.salePriceKopecks !== undefined) {
+      sets.push('sale_price_kopecks = ?')
+      values.push(input.salePriceKopecks)
+    }
+    if (input.priceUnit !== undefined) {
+      sets.push('price_unit = ?')
+      values.push(input.priceUnit)
     }
     if (input.active !== undefined) {
       sets.push('active = ?')

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutGrid, Package, Ruler, Sparkles, Tally4, User } from 'lucide-react'
+import { FileText, LayoutGrid, Package, Ruler, Sparkles, Tally4, User } from 'lucide-react'
 import { getGenerationSource } from '@/api'
 import { CreditsCard } from '@/components/billing/CreditsCard'
 import { useBilling } from '@/hooks/useBilling'
@@ -31,6 +31,7 @@ const SIDEBAR_GROUPS: Array<{ title: string; items: Array<NavItem & { full: stri
     items: [
       { to: '/measurements', label: 'Замеры', full: 'Лист замеров', icon: Tally4 },
       { to: '/drawings', label: 'Чертежи', full: 'Чертежи и спецификация', icon: Ruler },
+      { to: '/package', label: 'Техпакет', full: 'Техпакет и смета', icon: FileText },
     ],
   },
   {

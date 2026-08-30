@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Power } from 'lucide-react'
 import type { CatalogItem, CatalogType } from '@shared/index'
-import { CATALOG_TYPE_LABELS } from '@shared/index'
+import { CATALOG_TYPE_LABELS, PRICE_UNIT_LABELS, formatRubles } from '@shared/index'
 import { createCatalogItem, disableCatalogItem, listCatalog } from '@/api/server/catalog'
 import { PageHeader } from '@/components/layout/AppShell'
 import { Badge } from '@/components/ui/Badge'
@@ -142,8 +142,10 @@ export function CatalogPage() {
         type,
         name,
         sku: '',
-        purchasePrice: null,
-        salePrice: price ? Number(price) : null,
+        purchasePriceKopecks: null,
+        // Пользователь вводит рубли, хранятся копейки: в деньгах дробей нет.
+        salePriceKopecks: price ? Math.round(Number(price) * 100) : null,
+        priceUnit: type === 'countertop' ? 'linear_metre' : 'square_metre',
         active: true,
         demo: false,
         attributes,
@@ -257,7 +259,9 @@ export function CatalogPage() {
                     <p className="text-[0.875rem] leading-snug font-medium text-ink">{item.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted">
                       {attributes.colorName ?? attributes.decor ?? '—'}
-                      {item.salePrice ? ` · ${item.salePrice} ₽` : ''}
+                      {item.salePriceKopecks
+                        ? ` · ${formatRubles(item.salePriceKopecks)} / ${PRICE_UNIT_LABELS[item.priceUnit]}`
+                        : ''}
                     </p>
                     <div className="mt-1.5 flex gap-1.5">
                       {item.demo && <Badge tone="neutral">Демо</Badge>}
@@ -353,7 +357,7 @@ export function CatalogPage() {
             </div>
           </div>
           <Input
-            label="Цена за м², ₽"
+            label={type === 'countertop' ? 'Цена за погонный метр, ₽' : 'Цена за м², ₽'}
             value={price}
             onChange={(event) => setPrice(event.target.value.replace(/[^\d]/g, ''))}
             inputMode="numeric"

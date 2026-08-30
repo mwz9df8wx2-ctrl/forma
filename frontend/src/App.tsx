@@ -13,6 +13,7 @@ import { GenerationPage } from '@/pages/GenerationPage'
 import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MeasurementsPage } from '@/pages/MeasurementsPage'
+import { PackagePage } from '@/pages/PackagePage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { ProjectPage } from '@/pages/ProjectPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
@@ -61,6 +62,7 @@ export function App() {
                     <Route path="/generation" element={<GenerationPage />} />
                     <Route path="/results" element={<ResultsPage />} />
                     <Route path="/drawings" element={<DrawingsPage />} />
+                    <Route path="/package" element={<PackagePage />} />
                     <Route path="/catalog" element={<CatalogPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
