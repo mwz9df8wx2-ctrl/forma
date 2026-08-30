@@ -251,3 +251,18 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   value       TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
+
+-- Диалог уточнения замеров. Хранится, чтобы было видно, откуда взялось
+-- значение: кто написал, что распознал разбор и что подтвердил человек.
+CREATE TABLE IF NOT EXISTS project_messages (
+  id           TEXT PRIMARY KEY,
+  company_id   TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id      TEXT REFERENCES users(id),
+  role         TEXT NOT NULL,
+  text         TEXT NOT NULL,
+  suggestions  TEXT NOT NULL DEFAULT '[]',
+  source       TEXT NOT NULL DEFAULT 'rules',
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS messages_project ON project_messages(project_id, created_at);

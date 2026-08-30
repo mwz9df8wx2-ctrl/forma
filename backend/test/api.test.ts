@@ -800,3 +800,182 @@ describe('Отказы и возвраты', () => {
     setImageProvider(new MockImageProvider())
   })
 })
+
+// --- M4: замеры, разбор текста и подтверждение ------------------------------
+
+describe('Замеры и разбор текста', () => {
+  let token = ''
+  let projectId = ''
+
+  const sheet =
+    'Задняя стена 3200, левая стена 1900. Высота потолка 2,65 м. ' +
+    'Глубина столешницы 600, высота столешницы 900. ' +
+    'Холодильник 600, варочная панель 600, мойка 800. ' +
+    'Вода 1200 от угла, канализация 1250.'
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Замеры', name: 'Замерщик', email: 'measure@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+    const created = await api('/api/v1/projects', {
+      method: 'POST',
+      token,
+      body: { title: 'Кухня — замеры' },
+    })
+    projectId = created.body.project.id
+    await api(`/api/v1/projects/${projectId}/spec`, {
+      method: 'POST',
+      token,
+      body: { spec: { ...completeSpec, layoutKind: 'corner' }, source: 'manual' },
+    })
+  })
+
+  it('лист замеров перечисляет технику и точки подключения', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements`, { token })
+    assert.equal(response.status, 200)
+    const ids = response.body.checklist.map((item: any) => item.id)
+    assert.ok(ids.includes('sideRun'))
+    assert.ok(ids.includes('appliance:fridge'))
+    assert.ok(ids.includes('utility:drain'))
+    // Техника и коммуникации ещё не замерены.
+    assert.ok(response.body.summary.missing.length > 0)
+  })
+
+  it('разбирает текст замера, но спецификацию не меняет', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements/parse`, {
+      method: 'POST',
+      token,
+      body: { text: sheet },
+    })
+    assert.equal(response.status, 201)
+    assert.equal(response.body.usedModel, false)
+
+    const byId = new Map(response.body.suggestions.map((item: any) => [item.id, item]))
+    assert.equal((byId.get('roomWidth') as any).value, 3200)
+    assert.equal((byId.get('roomHeight') as any).value, 2650)
+    assert.equal((byId.get('appliance:fridge') as any).value, 600)
+    assert.equal((byId.get('utility:drain') as any).value, 1250)
+    // Каждое значение сопровождается фрагментом текста: его можно проверить.
+    assert.ok((byId.get('roomWidth') as any).quote.includes('3200'))
+
+    // Разбор ничего не записал.
+    const after = await api(`/api/v1/projects/${projectId}/measurements`, { token })
+    const fridge = after.body.checklist.find((item: any) => item.id === 'appliance:fridge')
+    assert.equal(fridge.status, 'missing')
+  })
+
+  it('не берёт кредит, когда модель не участвовала', async () => {
+    const before = await api('/api/v1/billing/wallet', { token })
+    const response = await api(`/api/v1/projects/${projectId}/measurements/parse`, {
+      method: 'POST',
+      token,
+      body: { text: sheet, useAi: true },
+    })
+    assert.equal(response.body.usedModel, false)
+    const after = await api('/api/v1/billing/wallet', { token })
+    assert.equal(after.body.wallet.available, before.body.wallet.available)
+    assert.equal(after.body.wallet.reserved, 0)
+  })
+
+  it('подтверждённые значения получают статус замера', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements/apply`, {
+      method: 'POST',
+      token,
+      body: {
+        accepted: [
+          { id: 'roomWidth', value: 3200 },
+          { id: 'appliance:fridge', value: 600 },
+          { id: 'utility:drain', value: 1250 },
+        ],
+      },
+    })
+    assert.equal(response.status, 201)
+
+    const checklist = new Map(response.body.checklist.map((item: any) => [item.id, item]))
+    assert.equal((checklist.get('roomWidth') as any).status, 'confirmed')
+    assert.equal((checklist.get('appliance:fridge') as any).value, 600)
+    assert.equal((checklist.get('utility:drain') as any).status, 'confirmed')
+    // Спецификация обновилась в той же черновой ревизии.
+    assert.equal(response.body.createdNewRevision, false)
+    assert.equal(response.body.revision.spec.appliances.length, 1)
+  })
+
+  it('помечает конфликт с уже подтверждённым значением', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements/parse`, {
+      method: 'POST',
+      token,
+      body: { text: 'Задняя стена 3400' },
+    })
+    const suggestion = response.body.suggestions.find((item: any) => item.id === 'roomWidth')
+    assert.equal(suggestion.value, 3400)
+    assert.equal(suggestion.current, 3200)
+    assert.equal(suggestion.conflict, true)
+  })
+
+  it('отклоняет неизвестный замер', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements/apply`, {
+      method: 'POST',
+      token,
+      body: { accepted: [{ id: 'appliance:teleport', value: 600 }] },
+    })
+    assert.equal(response.status, 400)
+  })
+
+  it('не записывает значение вне разумного диапазона', async () => {
+    await api(`/api/v1/projects/${projectId}/measurements/apply`, {
+      method: 'POST',
+      token,
+      // Опечатка на порядок: холодильник шириной шесть метров.
+      body: { accepted: [{ id: 'appliance:fridge', value: 6000 }] },
+    })
+    const after = await api(`/api/v1/projects/${projectId}/measurements`, { token })
+    const fridge = after.body.checklist.find((item: any) => item.id === 'appliance:fridge')
+    assert.equal(fridge.value, 600)
+  })
+
+  it('не пускает в производство, пока остались предположения', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/measurements`, { token })
+    assert.equal(response.body.summary.readyForProduction, false)
+    assert.ok(response.body.summary.missing.length > 0)
+  })
+
+  it('сохраняет историю диалога', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/messages`, { token })
+    assert.ok(response.body.messages.length >= 2)
+    const applied = response.body.messages.find((item: any) => item.source === 'apply')
+    assert.ok(applied)
+  })
+
+  it('чужой проект недоступен', async () => {
+    const other = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Чужие замеры', name: 'Гость', email: 'alien-measure@test.ru', password: 'parol12345' },
+    })
+    const response = await api(`/api/v1/projects/${projectId}/measurements`, {
+      token: other.body.token,
+    })
+    assert.equal(response.status, 404)
+  })
+
+  it('после согласования подтверждение создаёт новую ревизию', async () => {
+    // Доводим спецификацию до готовности и согласуем её.
+    const revisions = await api(`/api/v1/projects/${projectId}/revisions`, { token })
+    const current = revisions.body.revisions[0]
+    const approved = await api(
+      `/api/v1/projects/${projectId}/revisions/${current.id}/approve`,
+      { method: 'POST', token, body: {} },
+    )
+    assert.equal(approved.status, 201)
+
+    const response = await api(`/api/v1/projects/${projectId}/measurements/apply`, {
+      method: 'POST',
+      token,
+      body: { accepted: [{ id: 'counterDepth', value: 620 }] },
+    })
+    assert.equal(response.body.createdNewRevision, true)
+    assert.equal(response.body.revision.revisionNumber, 2)
+    assert.equal(response.body.revision.spec.dimensions.counterDepth, 620)
+  })
+})

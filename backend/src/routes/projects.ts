@@ -1,5 +1,13 @@
 import * as z from 'zod'
-import { projectSpecSchema, emptySpec, specReadiness, furnitureCategorySchema } from '../../../shared/src/index.ts'
+import {
+  projectSpecSchema,
+  emptySpec,
+  specReadiness,
+  measurementSummary,
+  furnitureCategorySchema,
+  type ProjectSpec,
+} from '../../../shared/src/index.ts'
+import type { AuthUser } from './auth.ts'
 import { db, transaction } from '../db/connection.ts'
 import { badRequest, conflict, notFound } from '../lib/errors.ts'
 import { createId, nowIso } from '../lib/ids.ts'
@@ -70,7 +78,7 @@ const PROJECT_COLUMNS = `
 `
 
 /** Проект компании. Чужой проект недоступен даже по прямой ссылке. */
-function loadProject(projectId: string, companyId: string): ProjectRow {
+export function loadProject(projectId: string, companyId: string): ProjectRow {
   const row = db()
     .prepare(`SELECT ${PROJECT_COLUMNS} FROM projects WHERE id = ? AND company_id = ?`)
     .get(projectId, companyId) as unknown as ProjectRow | undefined
@@ -96,7 +104,7 @@ const REVISION_COLUMNS = `
   locked, approval_status AS approvalStatus, created_at AS createdAt
 `
 
-function loadRevision(revisionId: string, projectId: string): RevisionRow {
+export function loadRevision(revisionId: string, projectId: string): RevisionRow {
   const row = db()
     .prepare(`SELECT ${REVISION_COLUMNS} FROM project_revisions WHERE id = ? AND project_id = ?`)
     .get(revisionId, projectId) as unknown as RevisionRow | undefined
@@ -104,7 +112,7 @@ function loadRevision(revisionId: string, projectId: string): RevisionRow {
   return row
 }
 
-function presentRevision(row: RevisionRow) {
+export function presentRevision(row: RevisionRow) {
   const spec = JSON.parse(row.specSnapshot)
   return {
     id: row.id,
@@ -117,6 +125,9 @@ function presentRevision(row: RevisionRow) {
     createdAt: row.createdAt,
     spec,
     readiness: specReadiness(spec),
+    // Состояние замеров идёт вместе с ревизией: экрану не нужно считать его заново,
+    // и оно не может разойтись с тем, что видит сервер.
+    measurements: measurementSummary(spec),
   }
 }
 
@@ -129,6 +140,66 @@ function touchProject(projectId: string, fields: Record<string, string | null> =
   }
   values.push(projectId)
   db().prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).run(...values)
+}
+
+/**
+ * Запись спецификации в ревизию.
+ *
+ * Одно правило на все источники — ручной ввод, чат, распознавание: черновая
+ * ревизия правится на месте, согласованная порождает новую. Если бы каждый
+ * источник писал по-своему, согласованный с клиентом вариант рано или поздно
+ * изменился бы задним числом.
+ */
+export function writeSpecRevision(
+  auth: AuthUser,
+  project: ProjectRow,
+  spec: ProjectSpec,
+  source: string,
+) {
+  const snapshot = JSON.stringify(spec)
+
+  return transaction(() => {
+    const current = project.currentRevisionId
+      ? loadRevision(project.currentRevisionId, project.id)
+      : null
+
+    if (current && current.locked === 0) {
+      db()
+        .prepare('UPDATE project_revisions SET spec_snapshot = ?, source = ? WHERE id = ?')
+        .run(snapshot, source, current.id)
+      touchProject(project.id, { status: 'requirements_confirmed' })
+      writeAudit(auth, 'spec.updated', project.id, { revisionId: current.id })
+      return {
+        revision: presentRevision(loadRevision(current.id, project.id)),
+        createdNewRevision: false,
+      }
+    }
+
+    // Согласованную ревизию менять нельзя — создаём следующую.
+    const nextNumber =
+      ((db()
+        .prepare('SELECT MAX(revision_number) AS n FROM project_revisions WHERE project_id = ?')
+        .get(project.id) as unknown as { n: number | null }).n ?? 0) + 1
+    const revisionId = createId('rev')
+
+    db()
+      .prepare(
+        `INSERT INTO project_revisions
+           (id, project_id, revision_number, parent_revision_id, created_by, source, spec_snapshot, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(revisionId, project.id, nextNumber, current?.id ?? null, auth.userId, source, snapshot, nowIso())
+
+    touchProject(project.id, {
+      current_revision_id: revisionId,
+      status: 'requirements_confirmed',
+    })
+    writeAudit(auth, 'revision.created', project.id, { revisionId, number: String(nextNumber) })
+    return {
+      revision: presentRevision(loadRevision(revisionId, project.id)),
+      createdNewRevision: true,
+    }
+  })
 }
 
 export function registerProjectRoutes(router: Router): void {
@@ -247,59 +318,7 @@ export function registerProjectRoutes(router: Router): void {
     const auth = requireAuth(ctx)
     const project = loadProject(ctx.params.id, auth.companyId)
     const input = saveSpecSchema.parse(await readJson(ctx.req))
-    const snapshot = JSON.stringify(input.spec)
-
-    return transaction(() => {
-      const current = project.currentRevisionId
-        ? loadRevision(project.currentRevisionId, project.id)
-        : null
-
-      if (current && current.locked === 0) {
-        db()
-          .prepare('UPDATE project_revisions SET spec_snapshot = ?, source = ? WHERE id = ?')
-          .run(snapshot, input.source, current.id)
-        touchProject(project.id, { status: 'requirements_confirmed' })
-        writeAudit(auth, 'spec.updated', project.id, { revisionId: current.id })
-        return {
-          revision: presentRevision(loadRevision(current.id, project.id)),
-          createdNewRevision: false,
-        }
-      }
-
-      // Согласованную ревизию менять нельзя — создаём следующую.
-      const nextNumber =
-        ((db()
-          .prepare('SELECT MAX(revision_number) AS n FROM project_revisions WHERE project_id = ?')
-          .get(project.id) as unknown as { n: number | null }).n ?? 0) + 1
-      const revisionId = createId('rev')
-
-      db()
-        .prepare(
-          `INSERT INTO project_revisions
-             (id, project_id, revision_number, parent_revision_id, created_by, source, spec_snapshot, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          revisionId,
-          project.id,
-          nextNumber,
-          current?.id ?? null,
-          auth.userId,
-          input.source,
-          snapshot,
-          nowIso(),
-        )
-
-      touchProject(project.id, {
-        current_revision_id: revisionId,
-        status: 'requirements_confirmed',
-      })
-      writeAudit(auth, 'revision.created', project.id, { revisionId, number: String(nextNumber) })
-      return {
-        revision: presentRevision(loadRevision(revisionId, project.id)),
-        createdNewRevision: true,
-      }
-    })
+    return writeSpecRevision(auth, project, input.spec, input.source)
   })
 
   /** Согласование: ревизия блокируется, дальше только новая. */

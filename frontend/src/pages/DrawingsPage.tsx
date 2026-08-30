@@ -4,6 +4,7 @@ import { Download, Ruler } from 'lucide-react'
 import { FlowHeader } from '@/components/layout/FlowHeader'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { MeasurementNotice } from '@/components/measurements/MeasurementNotice'
 import { buildSchedule, summarize } from '@/drawings/schedule'
 import { hardwareTotals, moduleHardware } from '@/drawings/hardware'
 import { buildWorktopPlan, renderWorktopSheet } from '@/drawings/worktop'
@@ -88,6 +89,8 @@ export function DrawingsPage() {
             Развёртка, план и спецификация модулей строятся из тех же размеров, что и
             визуализация. Все размеры в миллиметрах.
           </p>
+
+          <MeasurementNotice className="mt-5" />
 
           {!drawings && (
             <EmptyState

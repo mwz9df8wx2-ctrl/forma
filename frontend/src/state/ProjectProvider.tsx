@@ -14,6 +14,7 @@ import { paramsToSpec } from '@/lib/specMapping'
 import { useToast } from '@/hooks/useToast'
 import { nearestByHex } from '@/lib/color'
 import { formatDate } from '@/lib/format'
+import { readStorage, removeStorage, writeStorage } from '@/lib/storage'
 import { buildGenerationPayload, missingParams } from '@/lib/payload'
 import { buildSummary } from '@/lib/summary'
 import { DEFAULT_PARAMS } from '@/mock/catalog'
@@ -32,6 +33,18 @@ function defaultTitle(): string {
   return `Кухня — ${formatDate(new Date().toISOString())}`
 }
 
+/**
+ * Открытый серверный проект переживает перезагрузку страницы.
+ * Иначе переход по прямой ссылке — на замеры, чертежи — терял бы проект,
+ * и замерщик на объекте начинал бы заново.
+ */
+const OPEN_PROJECT_KEY = 'forma.project.v1'
+
+interface OpenProject {
+  id: string
+  revisionId: string | null
+}
+
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { catalog } = useCatalog()
   const { showError, show } = useToast()
@@ -47,9 +60,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [title, setTitle] = useState(defaultTitle)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [generation, setGeneration] = useState<Generation | null>(null)
-  const [serverProject, setServerProject] = useState<{ id: string; revisionId: string | null } | null>(
-    null,
+  const [serverProject, setServerProjectState] = useState<OpenProject | null>(() =>
+    readStorage<OpenProject | null>(OPEN_PROJECT_KEY, null),
   )
+
+  const setServerProject = useCallback((value: OpenProject | null) => {
+    setServerProjectState(value)
+    if (value) writeStorage(OPEN_PROJECT_KEY, value)
+    else removeStorage(OPEN_PROJECT_KEY)
+  }, [])
   // Зерно расчёта: сохраняется между запусками, меняется только по команде.
   // Значение берём лениво, чтобы не вызывать Math.random во время рендера.
   const seed = useRef<number | null>(null)
@@ -323,6 +342,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     params,
     project,
     serverProject,
+    setServerProject,
     serverGeneration,
     runServerJob,
     stopWatching,
@@ -354,7 +374,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       dimensions: { ...DEFAULT_PARAMS.dimensions },
       options: { ...DEFAULT_PARAMS.options },
     })
-  }, [stopWatching])
+  }, [stopWatching, setServerProject])
 
   const missing = useMemo(() => missingParams(params), [params])
 
@@ -387,6 +407,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     [
       project,
       serverProject,
+      setServerProject,
       photo,
       params,
       title,

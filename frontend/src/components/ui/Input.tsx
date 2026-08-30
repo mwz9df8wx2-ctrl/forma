@@ -4,6 +4,8 @@ import { cn } from '@/lib/cn'
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label: string
+  /** Подпись остаётся для программ чтения экрана, но не занимает место. */
+  hideLabel?: boolean
   hint?: string
   error?: string
   suffix?: ReactNode
@@ -12,6 +14,7 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 
 export function Input({
   label,
+  hideLabel,
   hint,
   error,
   suffix,
@@ -28,7 +31,9 @@ export function Input({
     <div className="min-w-0">
       <label
         htmlFor={inputId}
-        className="mb-1.5 block text-[0.8125rem] font-medium text-muted"
+        className={cn(
+          hideLabel ? 'sr-only' : 'mb-1.5 block text-[0.8125rem] font-medium text-muted',
+        )}
       >
         {label}
       </label>
