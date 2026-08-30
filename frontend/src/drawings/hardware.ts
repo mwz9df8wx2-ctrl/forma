@@ -75,6 +75,12 @@ export function slideLengthForDepth(depth: number): number {
 }
 
 /** Признак ящика: у нижних модулей высотой меньше 300 фасад ящичный. */
+/** Висит модуль или стоит. По умолчанию верхние и полки висят, остальные стоят. */
+export function isWallMounted(module: FurnitureModule): boolean {
+  if (module.mounted) return module.mounted === 'wall'
+  return module.kind === 'upper' || module.kind === 'shelf'
+}
+
 function isDrawerModule(module: FurnitureModule): boolean {
   // Признак берём из модуля; проверка по названию осталась для раскладок,
   // собранных до появления поля.
@@ -125,14 +131,17 @@ export function moduleHardware(
     slides,
     slideLength: slides > 0 ? slideLengthForDepth(module.depth) : null,
     handles: options.handles ? module.doors : 0,
-    // Внутренний блок опирается на чужие боковины: ни ножек, ни цоколя.
+    // Внутренний блок опирается на чужие боковины, подвесной — на навесы:
+    // ни тому, ни другому ножки не нужны.
     legs:
-      !module.internal && (module.kind === 'base' || module.kind === 'island')
+      !module.internal && !isWallMounted(module) && (module.kind === 'base' || module.kind === 'island')
         ? rules.legsPerBaseModule
         : 0,
-    bracketSets: module.kind === 'upper' ? rules.bracketSetsPerUpper : 0,
+    // Навесы нужны всему, что висит, а не только верхнему ярусу кухни:
+    // подвесная тумба в ванной держится ровно на них.
+    bracketSets: !module.internal && isWallMounted(module) ? rules.bracketSetsPerUpper : 0,
     clips:
-      !module.internal && (module.kind === 'base' || module.kind === 'island')
+      !module.internal && !isWallMounted(module) && (module.kind === 'base' || module.kind === 'island')
         ? rules.clipsPerBaseModule
         : 0,
     screws16: rules.screws16PerModule,
@@ -181,7 +190,7 @@ export function hardwareTotals(
     screws16 += hardware.screws16
     screws30 += hardware.screws30
     if (hardware.slideLength) slideLengths.add(hardware.slideLength)
-    if (module.kind === 'base' && !module.internal) baseRows = 1
+    if (module.kind === 'base' && !module.internal && !isWallMounted(module)) baseRows = 1
   }
   legs += baseRows * rules.legsPerRow
 

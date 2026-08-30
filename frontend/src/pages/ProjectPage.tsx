@@ -51,6 +51,8 @@ const SETUP_TITLES: Record<string, string> = {
   cabinet: 'Настройте будущую тумбу',
   tv_zone: 'Настройте будущую ТВ-зону',
   living_room: 'Настройте будущую стенку',
+  hallway: 'Настройте будущую прихожую',
+  bathroom: 'Настройте мебель для ванной',
 }
 
 export function ProjectPage() {

@@ -85,6 +85,8 @@ const OBJECT_STAGE_LABEL: Record<string, string> = {
   cabinet: 'Собираем тумбу',
   tv_zone: 'Собираем ТВ-зону',
   living_room: 'Собираем стенку',
+  hallway: 'Собираем прихожую',
+  bathroom: 'Собираем мебель для ванной',
 }
 
 /**

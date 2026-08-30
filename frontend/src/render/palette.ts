@@ -58,6 +58,9 @@ export interface ScenePalette {
   darkGlass: number
   shelf: number
   carcass: number
+  mirror: number
+  ceramic: number
+  tile: number
   window: number
   lamp: number
   sky: [number, number, number]
@@ -173,6 +176,35 @@ export function createPalette(input: SceneInput): ScenePalette {
     scale: 1,
   })
 
+  // Зеркало: почти чистое отражение. Отдельный материал нужен и прихожей,
+  // и ванной — без него зеркальный шкаф выглядит как крашеная дверца.
+  const mirrorMaterial = addMaterial({
+    albedo: [0.86, 0.88, 0.9],
+    roughness: 0.03,
+    metallic: 1,
+    pattern: 'paint',
+    scale: 1,
+  })
+
+  // Настенная плитка. Отдельный материал, а не фартук кухни: у фартука
+  // рисунок берётся от столешницы, и в ванной он оказывается кварцем.
+  const tileMaterial = addMaterial({
+    albedo: albedo(input.countertop.color, 0.16, 0.86),
+    roughness: 0.18,
+    metallic: 0,
+    pattern: 'tile',
+    scale: 1,
+  })
+
+  // Керамика раковины: белая, гладкая, с лёгким блеском.
+  const ceramicMaterial = addMaterial({
+    albedo: [0.86, 0.86, 0.85],
+    roughness: 0.12,
+    metallic: 0,
+    pattern: 'paint',
+    scale: 1,
+  })
+
   const shelfMaterial = addMaterial({
     albedo: albedo(input.accent, 0.05, 0.7),
     roughness: 0.4,
@@ -219,6 +251,9 @@ export function createPalette(input: SceneInput): ScenePalette {
     darkGlass: darkGlassMaterial,
     shelf: shelfMaterial,
     carcass: carcassMaterial,
+    mirror: mirrorMaterial,
+    ceramic: ceramicMaterial,
+    tile: tileMaterial,
     window: windowMaterial,
     lamp: lampMaterial,
     sky,

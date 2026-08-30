@@ -189,6 +189,107 @@ check(
   0,
 )
 
+
+console.log('\n  Прихожая и ванная\n')
+
+const { buildHallwayLayout } = await import('../src/drawings/hallway.ts')
+const { buildBathroomLayout } = await import('../src/drawings/bathroom.ts')
+const { isWallMounted } = await import('../src/drawings/hardware.ts')
+
+const hallway = buildHallwayLayout({
+  room: { width: 3.0, height: 2.7, depth: 3.6 },
+  width: 2.8,
+  height: 2.4,
+  offset: 0.1,
+  facadeLabel: 'Эмаль жемчужная',
+})
+
+check('категория прихожей', hallway.category, 'hallway')
+check(
+  'вешалка открыта и без петель',
+  moduleHardware(
+    hallway.modules.find((m) => m.label === 'Открытая вешалка'),
+    { handles: true },
+  ).hinges,
+  0,
+)
+check(
+  'тумба под обувь на ящиках',
+  moduleHardware(
+    hallway.modules.find((m) => m.label.includes('обуви')),
+    { handles: true },
+  ).slides > 0,
+  true,
+)
+check(
+  'зеркало висит на стене',
+  isWallMounted(hallway.modules.find((m) => m.label === 'Зеркало')),
+  true,
+)
+check(
+  'мебель прихожей неглубокая',
+  hallway.modules
+    .filter((m) => m.kind === 'tall' || m.kind === 'base')
+    .every((m) => m.depth <= 450),
+  true,
+)
+check(
+  'композиция укладывается в стену',
+  Math.max(...hallway.modules.map((m) => m.x + m.width)) <= 2900,
+  true,
+)
+
+const bathroom = buildBathroomLayout({
+  room: { width: 2.6, height: 2.6, depth: 3.2 },
+  width: 2.4,
+  offset: 0.1,
+  facadeLabel: 'Эмаль жемчужная',
+})
+
+check('категория ванной', bathroom.category, 'bathroom')
+// Мебель ванной подвесная: под ней моют пол, и ножек у неё нет.
+check(
+  'вся мебель ванной подвесная',
+  bathroom.modules.filter((m) => m.kind !== 'appliance').every((m) => isWallMounted(m)),
+  true,
+)
+const bathroomHardware = hardwareTotals(bathroom, { handles: true, worktopJoints: 0 })
+check('ножек в ванной нет', bathroomHardware.find((line) => line.kind === 'leg')?.count ?? 0, 0)
+check(
+  'навесы посчитаны',
+  (bathroomHardware.find((line) => line.name.includes('Навес'))?.count ?? 0) > 0,
+  true,
+)
+check(
+  'нижняя кромка тумбы поднята над полом',
+  bathroom.modules.find((m) => m.label.includes('раковину')).y >= 300,
+  true,
+)
+
+const basin = bathroom.modules.find((m) => m.label.includes('Раковина'))
+check('раковина стоит на тумбе', basin !== undefined, true)
+check('раковина не изготавливается', basin.facade, undefined)
+const vanity = bathroom.modules.find((m) => m.label.includes('раковину'))
+check('раковина уже тумбы', basin.width < vanity.width, true)
+
+const mirrorCabinet = bathroom.modules.find((m) => m.label === 'Зеркальный шкаф')
+check('зеркальный шкаф есть', mirrorCabinet !== undefined, true)
+check('у зеркального шкафа зеркальный фронт', mirrorCabinet.surface, 'mirror')
+check(
+  'зеркальный шкаф не упирается в потолок',
+  mirrorCabinet.y + mirrorCabinet.height <= bathroom.room.height - 150,
+  true,
+)
+
+// Узкая стена не вмещает пенал — тогда его просто нет.
+const narrowBath = buildBathroomLayout({
+  room: { width: 1.4, height: 2.6, depth: 3.2 },
+  width: 1.0,
+  offset: 0.1,
+  facadeLabel: 'Эмаль',
+})
+check('на узкой стене пенала нет', narrowBath.modules.filter((m) => m.kind === 'tall').length, 0)
+
 console.log('\n  Сцена для трассировки\n')
 
 // Картинка и чертёж обязаны показывать одну кухню. Проверяем, что боковой
@@ -359,6 +460,14 @@ const wardrobeScene = furnitureScene('wardrobe')
 const cabinetScene = furnitureScene('cabinet')
 const tvScene = furnitureScene('tv_zone')
 const wallScene = furnitureScene('living_room')
+const bathScene = furnitureScene('bathroom')
+
+check('сцена ванной знает свою категорию', bathScene.layout.category, 'bathroom')
+// Цоколь под подвесной мебелью не рисуется: его там нет.
+const plinthBox = bathScene.boxes.find(
+  (box) => !box.inverted && box.min[1] === 0 && box.max[1] > 0.05 && box.max[1] < 0.6,
+)
+check('цоколя под подвесной тумбой нет', plinthBox, undefined)
 
 check('сцена ТВ-зоны знает свою категорию', tvScene.layout.category, 'tv_zone')
 check('сцена стенки знает свою категорию', wallScene.layout.category, 'living_room')

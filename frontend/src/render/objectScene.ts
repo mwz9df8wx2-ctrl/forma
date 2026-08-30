@@ -1,3 +1,4 @@
+import { isWallMounted } from '../drawings/hardware.ts'
 import { buildObjectLayout, type ObjectCategory } from '../drawings/object.ts'
 import type { FurnitureLayout, FurnitureModule } from '../drawings/types.ts'
 import { clamp, createPalette, lightColor } from './palette.ts'
@@ -64,14 +65,26 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
   addRoomBox([-0.03, H, -0.03], [W + 0.03, H + 0.12, D + 0.03], palette.ceiling)
 
   const layout = layoutFor(input, W, H, D)
+
+  // В ванной стена за мебелью выложена плиткой. Без неё сцена выглядит
+  // как шкаф в жилой комнате, а не как ванная. Панель ставим перед стеной,
+  // а не в её плоскости: совпадающие грани дают полосы на рендере.
+  if (layout.category === 'bathroom' && !compositing) {
+    addBox([0, 0, D - 0.035], [W, Math.min(H, 2.4), D - 0.012], palette.tile)
+  }
   const metre = (value: number) => value / 1000
 
-  const facadeFor = (module: FurnitureModule) =>
-    module.kind === 'upper'
+  const facadeFor = (module: FurnitureModule) => {
+    // Зеркальная дверца — не крашеный фасад: без своего материала
+    // зеркальный шкаф выглядит как обычная створка.
+    if (module.surface === 'mirror') return palette.mirror
+    if (module.surface === 'ceramic') return palette.ceramic
+    return module.kind === 'upper'
       ? palette.facadeUpper
       : module.kind === 'tall'
         ? palette.facadeTall
         : palette.facadeBase
+  }
 
   let lowestBody = Number.POSITIVE_INFINITY
   let highest = 0
@@ -91,9 +104,15 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
     highest = Math.max(highest, y1)
 
     if (module.kind === 'appliance') {
-      // Телевизор — не изделие цеха, но он определяет композицию, и без него
-      // картинка не отвечает на главный вопрос заказчика: как это будет висеть.
-      addBox([x0, y0, D - depth], [x1, y1, D - 0.008], palette.darkGlass)
+      // Телевизор, зеркало, раковина — не изделия цеха, но именно они
+      // отвечают на главный вопрос заказчика: как это будет выглядеть.
+      const material =
+        module.surface === 'mirror'
+          ? palette.mirror
+          : module.surface === 'ceramic'
+            ? palette.ceramic
+            : palette.darkGlass
+      addBox([x0, y0, D - depth], [x1, y1, D - 0.008], material)
       continue
     }
 
@@ -108,7 +127,9 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
       continue
     }
 
-    lowestBody = Math.min(lowestBody, y0)
+    // Цоколь считаем только по напольным модулям: под подвесной тумбой
+    // цоколя нет, иначе он вырос бы до полуметра.
+    if (!isWallMounted(module)) lowestBody = Math.min(lowestBody, y0)
 
     if (module.doors > 0) {
       // Закрытая секция: внутренности всё равно не видно, корпус рисуем целиком.

@@ -1,4 +1,4 @@
-import { ChefHat, LayoutPanelTop, Monitor, Package, Shirt } from 'lucide-react'
+import { Bath, ChefHat, DoorOpen, LayoutPanelTop, Monitor, Package, Shirt } from 'lucide-react'
 import type { FurnitureCategory } from '@shared/index'
 import { cn } from '@/lib/cn'
 
@@ -24,6 +24,18 @@ const OPTIONS: Array<{
     name: 'Стенка в гостиную',
     caption: 'Пеналы по краям, тумба под ТВ, полки',
     icon: LayoutPanelTop,
+  },
+  {
+    id: 'hallway',
+    name: 'Прихожая',
+    caption: 'Пенал, открытая вешалка, тумба и зеркало',
+    icon: DoorOpen,
+  },
+  {
+    id: 'bathroom',
+    name: 'Ванная',
+    caption: 'Подвесная тумба под раковину и зеркальный шкаф',
+    icon: Bath,
   },
 ]
 

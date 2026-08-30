@@ -1,3 +1,5 @@
+import { buildBathroomLayout } from './bathroom.ts'
+import { buildHallwayLayout } from './hallway.ts'
 import { buildLivingRoomLayout } from './livingRoom.ts'
 import { buildWardrobeLayout } from './wardrobe.ts'
 import type { FurnitureLayout } from './types.ts'
@@ -10,15 +12,25 @@ import type { FurnitureLayout } from './types.ts'
  * такие вещи не на экране, а на раскрое.
  */
 
-export type ObjectCategory = 'wardrobe' | 'cabinet' | 'tv_zone' | 'living_room'
+export type ObjectCategory =
+  | 'wardrobe'
+  | 'cabinet'
+  | 'tv_zone'
+  | 'living_room'
+  | 'hallway'
+  | 'bathroom'
+
+const OBJECT_CATEGORIES: readonly string[] = [
+  'wardrobe',
+  'cabinet',
+  'tv_zone',
+  'living_room',
+  'hallway',
+  'bathroom',
+]
 
 export function isObjectCategory(category: string): category is ObjectCategory {
-  return (
-    category === 'wardrobe' ||
-    category === 'cabinet' ||
-    category === 'tv_zone' ||
-    category === 'living_room'
-  )
+  return OBJECT_CATEGORIES.includes(category)
 }
 
 export interface ObjectLayoutInput {
@@ -34,6 +46,26 @@ export function buildObjectLayout(input: ObjectLayoutInput): FurnitureLayout {
   const { width: roomWidth, height: roomHeight } = input.room
   const offset = 0.1
   const width = Math.max(0.8, roomWidth - offset * 2)
+
+  if (input.category === 'hallway') {
+    return buildHallwayLayout({
+      room: input.room,
+      width,
+      // Прихожая идёт под потолок: свободной стены в коридоре мало.
+      height: Math.min(2.4, roomHeight - 0.1),
+      offset,
+      facadeLabel: input.facadeLabel,
+    })
+  }
+
+  if (input.category === 'bathroom') {
+    return buildBathroomLayout({
+      room: input.room,
+      width,
+      offset,
+      facadeLabel: input.facadeLabel,
+    })
+  }
 
   if (input.category === 'tv_zone' || input.category === 'living_room') {
     return buildLivingRoomLayout({

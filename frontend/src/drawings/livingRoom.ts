@@ -49,7 +49,7 @@ export function buildLivingRoomLayout(input: LivingRoomInput): FurnitureLayout {
     height: number,
     depth: number,
     doors: number,
-    extra?: { open?: boolean; drawers?: boolean },
+    extra?: { open?: boolean; drawers?: boolean; surface?: 'screen' | 'mirror' | 'ceramic' },
   ) => {
     counters[prefix] = (counters[prefix] ?? 0) + 1
     modules.push({
@@ -65,6 +65,7 @@ export function buildLivingRoomLayout(input: LivingRoomInput): FurnitureLayout {
       doors,
       open: extra?.open,
       drawers: extra?.drawers,
+      surface: extra?.surface,
       facade: kind === 'shelf' || kind === 'appliance' || extra?.open ? undefined : input.facadeLabel,
     })
   }
@@ -128,7 +129,9 @@ export function buildLivingRoomLayout(input: LivingRoomInput): FurnitureLayout {
   const tvHeight = Math.round(tvWidth * TV_ASPECT)
   const tvBottom = Math.max(baseHeight + 120, mm(input.tvBottom))
   const tvX = centreStart + (centreWidth - tvWidth) / 2
-  push('appliance', 'ТВ', 'Телевизор', tvX, tvWidth, tvBottom, tvHeight, 60, 0)
+  push('appliance', 'ТВ', 'Телевизор', tvX, tvWidth, tvBottom, tvHeight, 60, 0, {
+    surface: 'screen',
+  })
 
   // Полки над телевизором. Ставим только те, что помещаются с просветом:
   // полка вплотную к экрану мешает и кронштейну, и вентиляции.
