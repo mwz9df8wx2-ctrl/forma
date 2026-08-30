@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "ФОРМА",
+    "slug": "forma-kitchen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Съёмка кухни на замере",
+        "NSPhotoLibraryUsageDescription": "Выбор фотографии кухни"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-status-bar"
+    ],
+    "backgroundColor": "#F7F5F2",
+    "extra": {
+      "appUrl": "http://192.168.1.111:5190"
+    }
+  }
+}
