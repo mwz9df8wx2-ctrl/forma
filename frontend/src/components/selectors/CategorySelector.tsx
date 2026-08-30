@@ -1,4 +1,4 @@
-import { ChefHat, Package, Shirt } from 'lucide-react'
+import { ChefHat, LayoutPanelTop, Monitor, Package, Shirt } from 'lucide-react'
 import type { FurnitureCategory } from '@shared/index'
 import { cn } from '@/lib/cn'
 
@@ -18,6 +18,13 @@ const OPTIONS: Array<{
   { id: 'kitchen', name: 'Кухня', caption: 'Нижний и верхний ярус, столешница', icon: ChefHat },
   { id: 'wardrobe', name: 'Шкаф', caption: 'Секции, полки, штанга, антресоль', icon: Shirt },
   { id: 'cabinet', name: 'Тумба', caption: 'Низкий объём с полками и ящиками', icon: Package },
+  { id: 'tv_zone', name: 'ТВ-зона', caption: 'Тумба под телевизор и навесные полки', icon: Monitor },
+  {
+    id: 'living_room',
+    name: 'Стенка в гостиную',
+    caption: 'Пеналы по краям, тумба под ТВ, полки',
+    icon: LayoutPanelTop,
+  },
 ]
 
 export function CategorySelector({
@@ -28,7 +35,11 @@ export function CategorySelector({
   onChange: (value: FurnitureCategory) => void
 }) {
   return (
-    <div role="radiogroup" aria-label="Что проектируем" className="grid gap-2.5 sm:grid-cols-3">
+    <div
+      role="radiogroup"
+      aria-label="Что проектируем"
+      className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3"
+    >
       {OPTIONS.map((option) => {
         const active = value === option.id
         return (

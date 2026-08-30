@@ -92,7 +92,7 @@ export interface SceneSpec {
 /** Исходные данные сцены — уже разрешённые значения, без справочников. */
 export interface SceneInput {
   /** Что строим. От категории зависит вся геометрия сцены. */
-  category?: 'kitchen' | 'wardrobe' | 'cabinet'
+  category?: 'kitchen' | 'wardrobe' | 'cabinet' | 'tv_zone' | 'living_room'
   room: { width: number; height: number; depth: number }
   counter: { height: number; depth: number }
   /**

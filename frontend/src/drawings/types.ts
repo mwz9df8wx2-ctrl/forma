@@ -41,6 +41,16 @@ export interface FurnitureModule {
    * У него нет ни ножек, ни цоколя: он опирается на чужие боковины.
    */
   internal?: boolean
+  /**
+   * Открытая секция без фасада. Это производственный факт, а не украшение
+   * картинки: у неё нет ни дверцы, ни петель, ни ручки.
+   */
+  open?: boolean
+  /**
+   * Фронты — выдвижные ящики, а не распашные дверцы.
+   * Ящику нужны направляющие, дверце — петли, и перепутать их нельзя.
+   */
+  drawers?: boolean
 }
 
 /**
@@ -50,7 +60,7 @@ export interface FurnitureModule {
 export interface FurnitureLayout {
   room: { width: number; height: number; depth: number }
   /** Категория объекта: от неё зависит состав листов техпакета. */
-  category: 'kitchen' | 'wardrobe' | 'cabinet'
+  category: 'kitchen' | 'wardrobe' | 'cabinet' | 'tv_zone' | 'living_room'
   /**
    * Есть ли столешница. У шкафа её нет, и лист «Схема столешниц» для него
    * не выпускается: пустой лист в цеху хуже отсутствующего.

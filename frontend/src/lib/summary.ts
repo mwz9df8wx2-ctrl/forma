@@ -1,4 +1,5 @@
 import type { Catalog, ProjectParams } from '@/types'
+import { isObjectCategory } from '@/drawings/object'
 
 const findName = <T extends { id: string; name: string }>(items: T[], id: string | null) =>
   items.find((item) => item.id === id)?.name ?? null
@@ -18,9 +19,9 @@ export interface SelectionRow {
 
 /** Развёрнутая сводка выбора — показывается на десктопе и на экране результата. */
 export function describeSelection(catalog: Catalog, params: ProjectParams): SelectionRow[] {
-  // У шкафа и тумбы столешницы нет: показывать выбранный кварц в сводке
+  // У корпусной мебели столешницы нет: показывать выбранный кварц в сводке
   // значит обещать клиенту то, чего в изделии не будет.
-  const hasWorktop = params.category !== 'wardrobe' && params.category !== 'cabinet'
+  const hasWorktop = !isObjectCategory(params.category)
 
   const rows: SelectionRow[] = [
     { label: 'Материал', value: findName(catalog.materials, params.materialId) ?? '—' },

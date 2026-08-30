@@ -31,6 +31,8 @@ export interface WardrobeInput {
   drawers: number
   /** Антресоль сверху отдельными дверцами. */
   topBox: boolean
+  /** Оставить крайнюю секцию открытой нишей. */
+  openSection: boolean
   facadeLabel: string
   category: 'wardrobe' | 'cabinet'
 }
@@ -49,7 +51,7 @@ export function buildWardrobeLayout(input: WardrobeInput): FurnitureLayout {
     height: number,
     depth: number,
     doors: number,
-    internal?: boolean,
+    extra?: { internal?: boolean; open?: boolean; drawers?: boolean },
   ) => {
     counters[prefix] = (counters[prefix] ?? 0) + 1
     modules.push({
@@ -63,8 +65,10 @@ export function buildWardrobeLayout(input: WardrobeInput): FurnitureLayout {
       height: Math.round(height),
       depth: Math.round(depth),
       doors,
-      internal,
-      facade: kind === 'shelf' ? undefined : input.facadeLabel,
+      internal: extra?.internal,
+      open: extra?.open,
+      drawers: extra?.drawers,
+      facade: kind === 'shelf' || extra?.open ? undefined : input.facadeLabel,
     })
   }
 
@@ -83,19 +87,25 @@ export function buildWardrobeLayout(input: WardrobeInput): FurnitureLayout {
   let cursor = offset
   // Ящики ставим в первую секцию без штанги: под одеждой им мешает подол.
   let drawersPlaced = input.drawers <= 0
+  // Одну секцию оставляем открытой нишей. Это не приём для картинки:
+  // у неё нет ни дверцы, ни петель, ни ручки, и в спецификацию она уходит
+  // именно такой. Открытой делаем последнюю секцию с полками.
+  const openIndex = input.openSection && widths.length > 1 ? widths.length - 1 : -1
 
   widths.forEach((width, index) => {
     const hanging = index < input.hangingSections
+    const isOpen = index === openIndex
     push(
       'tall',
       'Ш',
-      hanging ? 'Секция со штангой' : 'Секция с полками',
+      isOpen ? 'Открытая секция' : hanging ? 'Секция со штангой' : 'Секция с полками',
       cursor,
       width,
       plinth,
       bodyHeight,
       depth,
-      width > 700 ? 2 : 1,
+      isOpen ? 0 : width > 700 ? 2 : 1,
+      { open: isOpen || undefined },
     )
 
     if (hanging) {
@@ -108,7 +118,10 @@ export function buildWardrobeLayout(input: WardrobeInput): FurnitureLayout {
       drawersPlaced = true
       const blockHeight = input.drawers * DRAWER_HEIGHT
       // Блок стоит внутри секции: ножек и цоколя у него нет.
-      push('base', 'Я', 'Блок ящиков', cursor + 16, width - 32, plinth, blockHeight, depth - 60, input.drawers, true)
+      push('base', 'Я', 'Блок ящиков', cursor + 16, width - 32, plinth, blockHeight, depth - 60, input.drawers, {
+        internal: true,
+        drawers: true,
+      })
       let shelfY = plinth + blockHeight + SHELF_PITCH
       while (shelfY < plinth + bodyHeight - 120) {
         push('shelf', 'П', 'Полка секции', cursor + 16, width - 32, shelfY, 16, depth - 40, 0)

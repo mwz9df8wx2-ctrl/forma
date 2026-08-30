@@ -41,12 +41,25 @@ export const furnitureCategorySchema = z.enum([
   'wardrobe',
   'cabinet',
   'tv_zone',
+  'living_room',
   'hallway',
   'bathroom',
   'shelving',
   'custom',
 ])
 export type FurnitureCategory = z.infer<typeof furnitureCategorySchema>
+
+export const FURNITURE_CATEGORY_LABELS: Record<FurnitureCategory, string> = {
+  kitchen: 'Кухня',
+  wardrobe: 'Шкаф',
+  cabinet: 'Тумба',
+  tv_zone: 'ТВ-зона',
+  living_room: 'Стенка в гостиную',
+  hallway: 'Прихожая',
+  bathroom: 'Мебель для ванной',
+  shelving: 'Стеллаж',
+  custom: 'Другое изделие',
+}
 
 /** Выбор из каталога компании. Идентификаторы принадлежат каталогу, не ИИ. */
 export const materialsSchema = z.object({

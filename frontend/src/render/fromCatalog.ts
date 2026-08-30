@@ -1,4 +1,5 @@
 import { buildScene, type SceneInput } from './scene.ts'
+import { isObjectCategory } from '../drawings/object.ts'
 import type { PatternKind } from './types.ts'
 import type { Catalog, GrainKind, ProjectParams } from '../types/index.ts'
 
@@ -65,10 +66,9 @@ export function sceneInputFromParams(
   const roomHeight = params.dimensions.roomHeight / 1000
 
   return {
-    // Сцена умеет три категории; остальные рисуются как кухня, пока для них
-    // не появилась своя геометрия.
-    category:
-      params.category === 'wardrobe' || params.category === 'cabinet' ? params.category : 'kitchen',
+    // Корпусная мебель строится своей сценой; остальные категории рисуются
+    // как кухня, пока для них не появилась собственная геометрия.
+    category: isObjectCategory(params.category) ? params.category : ('kitchen' as const),
     room: {
       width: roomWidth,
       height: roomHeight,

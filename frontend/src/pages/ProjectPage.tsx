@@ -15,6 +15,7 @@ import { LightingSelector } from '@/components/selectors/LightingSelector'
 import { MaterialSelector } from '@/components/selectors/MaterialSelector'
 import { OptionsSelector } from '@/components/selectors/OptionsSelector'
 import { PaletteSelector } from '@/components/selectors/PaletteSelector'
+import { isObjectCategory } from '@/drawings/object'
 import { CategorySelector } from '@/components/selectors/CategorySelector'
 import { ParameterSection } from '@/components/selectors/ParameterSection'
 import { StyleSelector } from '@/components/selectors/StyleSelector'
@@ -41,6 +42,15 @@ function CatalogSkeleton() {
       ))}
     </div>
   )
+}
+
+/** Заголовок экрана называет то, что действительно проектируется. */
+const SETUP_TITLES: Record<string, string> = {
+  kitchen: 'Настройте будущую кухню',
+  wardrobe: 'Настройте будущий шкаф',
+  cabinet: 'Настройте будущую тумбу',
+  tv_zone: 'Настройте будущую ТВ-зону',
+  living_room: 'Настройте будущую стенку',
 }
 
 export function ProjectPage() {
@@ -135,7 +145,9 @@ export function ProjectPage() {
       <div className="min-w-0 flex-1">
         <p className="text-[0.875rem] leading-snug font-medium text-ink">Фотографии нет</p>
         <p className="mt-0.5 text-xs leading-snug text-faint">
-          Визуализация построится по размерам. Со снимком кухню можно вписать в помещение.
+          {params.category === 'kitchen'
+            ? 'Визуализация построится по размерам. Со снимком кухню можно вписать в помещение.'
+            : 'Визуализация построится по размерам. Вписывание в снимок пока работает только для кухни.'}
         </p>
       </div>
       <Button variant="quiet" size="sm" className="shrink-0" onClick={() => navigate('/')}>
@@ -165,11 +177,7 @@ export function ProjectPage() {
         <div className="min-w-0 flex-1 px-5 pt-6 pb-10 lg:px-10 lg:pt-8">
           <div className="mx-auto max-w-3xl">
             <h1 className="text-[1.5rem] leading-tight font-semibold tracking-[-0.025em] text-ink lg:text-[1.75rem]">
-              {params.category === 'wardrobe'
-                ? 'Настройте будущий шкаф'
-                : params.category === 'cabinet'
-                  ? 'Настройте будущую тумбу'
-                  : 'Настройте будущую кухню'}
+              {SETUP_TITLES[params.category] ?? 'Настройте будущее изделие'}
             </h1>
             <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
               Выберите материалы и характер интерьера. Изменить параметры можно в любой момент.
@@ -238,8 +246,8 @@ export function ProjectPage() {
                     />
                   </ParameterSection>
 
-                  {/* У шкафа и тумбы столешницы нет — и выбирать её незачем. */}
-                  {params.category !== 'wardrobe' && params.category !== 'cabinet' && (
+                  {/* У корпусной мебели столешницы нет — и выбирать её незачем. */}
+                  {!isObjectCategory(params.category) && (
                     <ParameterSection id="countertop" eyebrow="Столешница">
                       <CountertopSelector
                         countertops={catalog.countertops}

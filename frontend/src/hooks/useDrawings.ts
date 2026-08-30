@@ -5,7 +5,7 @@ import { buildWorktopPlan, renderWorktopSheet } from '@/drawings/worktop'
 import { renderElevation } from '@/drawings/elevation'
 import { renderPlan } from '@/drawings/plan'
 import { buildSceneFromParams } from '@/render'
-import { buildWardrobeLayout } from '@/drawings/wardrobe'
+import { buildObjectLayout, isObjectCategory } from '@/drawings/object'
 import { useCatalog } from './useCatalog'
 import { useProject } from './useProject'
 
@@ -22,29 +22,18 @@ export function useDrawings() {
   const layout = useMemo(() => {
     if (!catalog || !params.materialId || !params.colorId) return null
 
-    // Шкаф и тумба собираются из тех же типов модулей, что и кухня, но
-    // раскладка у них своя: секции во всю высоту, полки и штанга вместо
-    // нижнего и верхнего ярусов.
-    if (params.category === 'wardrobe' || params.category === 'cabinet') {
-      const roomWidth = params.dimensions.roomWidth / 1000
-      const roomHeight = params.dimensions.roomHeight / 1000
-      const isCabinet = params.category === 'cabinet'
-      return buildWardrobeLayout({
+    // Корпусная мебель строится той же раскладкой, что и её визуализация:
+    // число секций на чертеже и на картинке обязано совпадать.
+    if (isObjectCategory(params.category)) {
+      return buildObjectLayout({
+        category: params.category,
         room: {
-          width: roomWidth,
-          height: roomHeight,
+          width: params.dimensions.roomWidth / 1000,
+          height: params.dimensions.roomHeight / 1000,
           depth: params.dimensions.roomDepth / 1000,
         },
-        width: Math.max(0.6, roomWidth - 0.2),
-        // Тумба — низкий объём, шкаф идёт под потолок с технологическим зазором.
-        height: isCabinet ? Math.min(1.2, roomHeight - 0.2) : Math.min(2.6, roomHeight - 0.06),
         depth: params.dimensions.counterDepth / 1000,
-        offset: 0.1,
-        hangingSections: isCabinet ? 0 : 2,
-        drawers: isCabinet ? 3 : 4,
-        topBox: !isCabinet,
         facadeLabel: catalog.colors.find((item) => item.id === params.colorId)?.name ?? 'Фасад',
-        category: isCabinet ? 'cabinet' : 'wardrobe',
       })
     }
 

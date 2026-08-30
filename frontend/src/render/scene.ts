@@ -1,16 +1,17 @@
 import type { AreaLight, RenderBox, SceneSpec, SceneInput } from './types.ts'
 import { clamp, createPalette, lightColor } from './palette.ts'
-import { buildWardrobeScene } from './wardrobeScene.ts'
+import { buildObjectScene } from './objectScene.ts'
 import { buildLayout } from '../drawings/layout.ts'
 import type { FurnitureLayout } from '../drawings/types.ts'
 
 export type { SceneInput } from './types.ts'
 
 export function buildScene(input: SceneInput): SceneSpec {
-  // Шкаф и тумба — своя геометрия. Палитра, свет и постобработка общие:
-  // один артикул каталога обязан выглядеть одинаково в любой категории.
-  if (input.category === 'wardrobe' || input.category === 'cabinet') {
-    return buildWardrobeScene(input)
+  // Корпусная мебель строится по модулям раскладки отдельной сценой.
+  // Палитра, свет и постобработка при этом общие: один артикул каталога
+  // обязан выглядеть одинаково в любой категории.
+  if (input.category && input.category !== 'kitchen') {
+    return buildObjectScene(input)
   }
 
   const W = clamp(input.room.width, 2.4, 6.4)

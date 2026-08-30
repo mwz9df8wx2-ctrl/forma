@@ -76,6 +76,9 @@ export function slideLengthForDepth(depth: number): number {
 
 /** Признак ящика: у нижних модулей высотой меньше 300 фасад ящичный. */
 function isDrawerModule(module: FurnitureModule): boolean {
+  // Признак берём из модуля; проверка по названию осталась для раскладок,
+  // собранных до появления поля.
+  if (module.drawers !== undefined) return module.drawers
   return module.kind === 'base' && module.label.toLowerCase().includes('ящик')
 }
 

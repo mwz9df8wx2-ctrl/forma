@@ -112,6 +112,83 @@ check(
 
 check('фронт считается по обоим рядам', Number(summarize(corner).frontMetres.toFixed(2)), 5.0)
 
+
+console.log('\n  ТВ-зона и стенка\n')
+
+const { buildLivingRoomLayout } = await import('../src/drawings/livingRoom.ts')
+
+function livingRoom(category, width = 3.2) {
+  return buildLivingRoomLayout({
+    room: { width: width + 0.2, height: 2.7, depth: 3.6 },
+    width,
+    depth: 0.45,
+    offset: 0.1,
+    tvWidth: 1.2,
+    tvBottom: 0.72,
+    category,
+    facadeLabel: 'Эмаль жемчужная',
+  })
+}
+
+const tv = livingRoom('tv_zone')
+const wall = livingRoom('living_room')
+
+check('категория ТВ-зоны', tv.category, 'tv_zone')
+check('столешницы у ТВ-зоны нет', tv.hasWorktop, false)
+check('у ТВ-зоны нет пеналов', tv.modules.filter((m) => m.kind === 'tall').length, 0)
+check('у стенки два пенала', wall.modules.filter((m) => m.kind === 'tall').length, 2)
+
+const tvModule = wall.modules.find((module) => module.label === 'Телевизор')
+check('телевизор попадает в раскладку', tvModule !== undefined, true)
+check('телевизор не изготавливается', tvModule.facade, undefined)
+check('пропорция телевизора 16:9', Math.round((tvModule.width / tvModule.height) * 100) / 100, 1.78)
+
+// Телевизор висит по центру между пеналами, а не по центру всей стенки:
+// иначе он окажется смещён относительно ниши.
+const columns = wall.modules.filter((m) => m.kind === 'tall').sort((a, b) => a.x - b.x)
+const nicheCentre = (columns[0].x + columns[0].width + columns[1].x) / 2
+check('телевизор по центру ниши', Math.abs(tvModule.x + tvModule.width / 2 - nicheCentre) <= 1, true)
+
+// Тумба стоит только между пеналами и не заезжает под них.
+const bases = wall.modules.filter((m) => m.kind === 'base')
+check(
+  'тумба не заходит под пеналы',
+  bases.every((m) => m.x >= columns[0].x + columns[0].width - 1 && m.x + m.width <= columns[1].x + 1),
+  true,
+)
+
+// Полки не садятся на телевизор: кронштейну и вентиляции нужен просвет.
+const shelves = wall.modules.filter((m) => m.kind === 'shelf')
+check('полки над телевизором есть', shelves.length > 0, true)
+check(
+  'полки не задевают телевизор',
+  shelves.every((shelf) => shelf.y >= tvModule.y + tvModule.height + 80),
+  true,
+)
+check(
+  'полки не выходят за потолок',
+  shelves.every((shelf) => shelf.y + shelf.height <= wall.room.height),
+  true,
+)
+
+// Узкая стена не вмещает пеналы — тогда стенка вырождается в ТВ-зону,
+// а не пытается втиснуть корпуса, которые некуда поставить.
+const narrow = livingRoom('living_room', 1.8)
+check('на узкой стене пеналов нет', narrow.modules.filter((m) => m.kind === 'tall').length, 0)
+
+// Крепёж считается той же машинкой.
+const wallHardware = hardwareTotals(wall, { handles: true, worktopJoints: 0 })
+check(
+  'ящики тумбы получили направляющие',
+  (wallHardware.find((line) => line.kind === 'slide')?.count ?? 0) > 0,
+  true,
+)
+check(
+  'телевизор не добавляет петель',
+  moduleHardware(tvModule, { handles: true }).hinges,
+  0,
+)
+
 console.log('\n  Сцена для трассировки\n')
 
 // Картинка и чертёж обязаны показывать одну кухню. Проверяем, что боковой
@@ -173,6 +250,7 @@ const wardrobe = buildWardrobeLayout({
   hangingSections: 2,
   drawers: 4,
   topBox: true,
+  openSection: true,
   facadeLabel: 'Эмаль жемчужная',
   category: 'wardrobe',
 })
@@ -206,6 +284,13 @@ check(
   wardrobe.modules.filter((module) => module.label === 'Блок ящиков').length,
   1,
 )
+// Открытая секция — производственный факт: ни дверцы, ни петель, ни ручки.
+const openSection = wardrobe.modules.find((module) => module.open)
+check('одна секция открыта', openSection !== undefined, true)
+check('у открытой секции нет дверец', openSection.doors, 0)
+check('у открытой секции не считаются петли', moduleHardware(openSection, { handles: true }).hinges, 0)
+check('у открытой секции нет фасада в спецификации', openSection.facade, undefined)
+
 check(
   'антресоль над каждой секцией',
   wardrobe.modules.filter((module) => module.kind === 'upper').length,
@@ -241,8 +326,8 @@ check(
 
 console.log('\n  Сцена шкафа\n')
 
-function furnitureScene(category) {
-  return buildScene({
+function sceneInputFor(category) {
+  return {
     category,
     room: { width: 3.0, height: 2.7, depth: 3.6 },
     counter: { height: 0.9, depth: 0.6 },
@@ -263,11 +348,26 @@ function furnitureScene(category) {
     },
     variant: 0,
     seed: 1,
-  })
+  }
+}
+
+function furnitureScene(category) {
+  return buildScene(sceneInputFor(category))
 }
 
 const wardrobeScene = furnitureScene('wardrobe')
 const cabinetScene = furnitureScene('cabinet')
+const tvScene = furnitureScene('tv_zone')
+const wallScene = furnitureScene('living_room')
+
+check('сцена ТВ-зоны знает свою категорию', tvScene.layout.category, 'tv_zone')
+check('сцена стенки знает свою категорию', wallScene.layout.category, 'living_room')
+// Телевизор виден на картинке: без него непонятно, как это будет висеть.
+check(
+  'телевизор попал в сцену',
+  wallScene.boxes.some((box) => box.max[1] - box.min[1] > 0.4 && box.max[2] - box.min[2] < 0.1 && box.min[1] > 0.6),
+  true,
+)
 
 check('сцена шкафа знает свою категорию', wardrobeScene.layout.category, 'wardrobe')
 check('сцена тумбы знает свою категорию', cabinetScene.layout.category, 'cabinet')
@@ -300,6 +400,27 @@ const covered =
   (wardrobeScene.camera.target[2] - wardrobeScene.camera.position[2]) *
   Math.tan(((wardrobeScene.camera.fov * Math.PI) / 180) / 2)
 check('изделие помещается в кадр по высоте', covered > 2.6, true)
+
+
+// Вписывание в фотографию проверялось только на кухне: у шкафа и стенки
+// другая привязка к стене, и композит по кухонным линиям был бы подделкой.
+const { renderIntoPhoto } = await import('../src/render/pipeline.ts')
+
+const photoWidth = 96
+const photoHeight = 64
+const photo = new Uint8ClampedArray(photoWidth * photoHeight * 4).fill(180)
+for (let i = 3; i < photo.length; i += 4) photo[i] = 255
+
+const composite = renderIntoPhoto({
+  photo,
+  photoWidth,
+  photoHeight,
+  input: sceneInputFor('living_room'),
+  dimensions: { roomWidth: 3400, roomDepth: 3600, roomHeight: 2700, counterHeight: 900, counterDepth: 450, sideRun: 0 },
+  aoSamples: 1,
+})
+check('стенку в снимок не вписывают', composite.log.composited, false)
+check('причина названа честно', composite.log.reason, 'вписывание в снимок работает только для кухни')
 
 console.log(`\n  ${failed === 0 ? `Все ${passed} проверок пройдены.` : `Провалено: ${failed} из ${passed + failed}.`}\n`)
 process.exit(failed === 0 ? 0 : 1)

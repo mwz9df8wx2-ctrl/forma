@@ -144,12 +144,17 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
 
   const camera = solveCamera(analysis, dimensions)
 
+  // Разбор снимка построен на линиях пола и столешницы — он проверялся
+  // только на кухне. Шкаф или стенку по этим линиям вписывать нельзя:
+  // получится мебель, приклеенная к чужой геометрии.
+  const kitchenOnly = options.input.category !== undefined && options.input.category !== 'kitchen'
+
   // Снимок не подходит под фронтальную модель — вписывать нельзя.
   // Кривой композит выглядит хуже, чем честная отдельная визуализация.
-  if (!analysis.suitability.composable || camera.confidence < 0.45) {
-    const reason =
-      analysis.suitability.reason ??
-      'перспективу помещения не удалось разобрать уверенно'
+  if (kitchenOnly || !analysis.suitability.composable || camera.confidence < 0.45) {
+    const reason = kitchenOnly
+      ? 'вписывание в снимок работает только для кухни'
+      : (analysis.suitability.reason ?? 'перспективу помещения не удалось разобрать уверенно')
     const standalone = renderImage(buildScene({ ...options.input, compositing: false }), photoWidth, photoHeight, {
       aoSamples,
       onProgress: (ratio) => onProgress?.(0.05 + ratio * 0.95),
