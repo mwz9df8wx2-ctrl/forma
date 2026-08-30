@@ -1,0 +1,43 @@
+{
+  "name": "forma-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "icons": "node scripts/generate-icons.mjs",
+    "typecheck": "tsc -b --noEmit",
+    "dev:mobile": "HTTPS=1 node scripts/mobile-url.mjs && HTTPS=1 vite --host --strictPort",
+    "dev:lan": "node scripts/mobile-url.mjs && vite --host --strictPort",
+    "samples": "node scripts/render-samples.mjs",
+    "test:analysis": "node scripts/test-analysis.mjs",
+    "test:composite": "node scripts/test-composite.mjs",
+    "test:regression": "node scripts/test-regression.mjs",
+    "test:drawings": "node scripts/test-drawings.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "lucide-react": "^1.37.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^6.1.0",
+    "oxlint": "^1.79.0",
+    "qrcode-terminal": "^0.12.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  },
+  "description": "Фронтенд MVP визуализатора кухонь для мебельщиков"
+}

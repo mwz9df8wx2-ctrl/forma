@@ -1,0 +1,58 @@
+import type { Lighting } from '@/types'
+
+export const MOCK_LIGHTING: Lighting[] = [
+  {
+    id: 'natural',
+    name: 'Естественный',
+    description: 'Мягкий дневной свет из окон.',
+    kelvin: 5200,
+    warmth: 0.5,
+    contrast: 0.45,
+    brightness: 0.85,
+  },
+  {
+    id: 'bright-white',
+    name: 'Яркий белый',
+    description: 'Чистое яркое освещение с холодным белым оттенком.',
+    kelvin: 5000,
+    warmth: 0.2,
+    contrast: 0.3,
+    brightness: 1,
+  },
+  {
+    id: 'neutral',
+    name: 'Нейтральный',
+    description: 'Сбалансированный белый свет без выраженного тёплого или холодного оттенка.',
+    kelvin: 4000,
+    warmth: 0.45,
+    contrast: 0.35,
+    brightness: 0.9,
+  },
+  {
+    id: 'warm',
+    name: 'Тёплый',
+    description: 'Уютный свет с тёплым золотистым оттенком.',
+    kelvin: 2700,
+    warmth: 0.95,
+    contrast: 0.5,
+    brightness: 0.78,
+  },
+  {
+    id: 'warm-diffused',
+    name: 'Тёплый рассеянный',
+    description: 'Мягкое равномерное освещение без резких теней.',
+    kelvin: 3000,
+    warmth: 0.85,
+    contrast: 0.15,
+    brightness: 0.82,
+  },
+  {
+    id: 'contrast',
+    name: 'Контрастный',
+    description: 'Выраженный светотеневой рисунок для более драматичной атмосферы.',
+    kelvin: 3500,
+    warmth: 0.65,
+    contrast: 0.95,
+    brightness: 0.7,
+  },
+]

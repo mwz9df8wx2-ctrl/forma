@@ -1,0 +1,91 @@
+import type { CountertopCatalog } from '@/types'
+
+export const MOCK_COUNTERTOPS: CountertopCatalog = {
+  materials: [
+    {
+      id: 'quartz',
+      name: 'Кварц',
+      caption: 'Кварцевый агломерат',
+      description: 'Плотная однородная поверхность с мелким минеральным зерном.',
+      preview: { base: '#E7E3DB', highlight: '#FFFFFF', shade: '#C1BBB0', grain: 'speck' },
+    },
+    {
+      id: 'natural-stone',
+      name: 'Натуральный камень',
+      caption: 'Природный рисунок',
+      description: 'Природный материал с уникальным рисунком прожилок.',
+      preview: { base: '#DAD4C9', highlight: '#F4F1EA', shade: '#A9A296', grain: 'marble' },
+    },
+    {
+      id: 'hpl',
+      name: 'HPL',
+      caption: 'Компакт-ламинат',
+      description: 'Тонкая прочная столешница с ровной матовой поверхностью.',
+      preview: { base: '#CFC9BF', highlight: '#E7E2D9', shade: '#A69F94', grain: 'linear' },
+    },
+    {
+      id: 'wood-top',
+      name: 'Дерево',
+      caption: 'Массив',
+      description: 'Тёплая деревянная поверхность с живым рисунком волокна.',
+      preview: { base: '#B98D5B', highlight: '#DCB98C', shade: '#8B6539', grain: 'wood' },
+    },
+    {
+      id: 'porcelain',
+      name: 'Керамогранит',
+      caption: 'Крупноформатный',
+      description: 'Износостойкая плита с ровным минеральным тоном.',
+      preview: { base: '#C8C4BD', highlight: '#E3E0D9', shade: '#9C978F', grain: 'stone' },
+    },
+  ],
+  colors: [
+    {
+      id: 'top-white',
+      name: 'Белый',
+      hex: '#F0EEE9',
+      grain: 'speck',
+      tone: 'light',
+      description: 'Чистая светлая поверхность без выраженного рисунка.',
+    },
+    {
+      id: 'top-light-stone',
+      name: 'Светлый камень',
+      hex: '#DED8CC',
+      grain: 'stone',
+      tone: 'light',
+      description: 'Тёплый песочно-серый тон природного камня.',
+    },
+    {
+      id: 'top-grey',
+      name: 'Серый',
+      hex: '#B6B2AC',
+      grain: 'stone',
+      tone: 'light',
+      description: 'Нейтральный средний серый — сочетается с любыми фасадами.',
+    },
+    {
+      id: 'top-graphite',
+      name: 'Графит',
+      hex: '#4B4C4E',
+      grain: 'stone',
+      tone: 'dark',
+      description: 'Тёмная матовая поверхность с плотным тоном.',
+    },
+    {
+      id: 'top-marble',
+      name: 'Мрамор',
+      hex: '#EAE7E1',
+      grain: 'marble',
+      tone: 'light',
+      description: 'Светлая плита с выраженными серыми прожилками.',
+    },
+    {
+      id: 'top-wood',
+      name: 'Натуральное дерево',
+      hex: '#B98D5B',
+      grain: 'wood',
+      tone: 'light',
+      description: 'Тёплая древесная поверхность с видимым волокном.',
+    },
+  ],
+}

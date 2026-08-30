@@ -1,0 +1,255 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   ФОРМА — дизайн-система
+   Тёплая нейтральная база: ivory, светло-серый, графит, почти чёрный.
+   Единственный акцент — приглушённая глина (clay).
+------------------------------------------------------------------- */
+@theme {
+  --font-sans:
+    'Inter', 'Manrope', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* Поверхности */
+  --color-canvas: #f7f5f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #fbfaf8;
+  --color-surface-3: #f1eee9;
+
+  /* Линии */
+  --color-line: #e7e3db;
+  --color-line-strong: #d6cfc4;
+
+  /* Текст */
+  --color-ink: #1a1917;
+  --color-graphite: #3d3a35;
+  --color-muted: #6b665e;
+  --color-faint: #767065;
+
+  /* Акцент */
+  --color-clay: #a2542c;
+  --color-clay-dark: #8b4623;
+  --color-clay-soft: #f4eae2;
+
+  /* Служебные */
+  --color-success: #4a7a52;
+  --color-danger: #a4392b;
+  --color-danger-soft: #f8ece9;
+
+  /* Тени — очень мягкие */
+  --shadow-hair: 0 1px 2px rgba(26, 25, 23, 0.04);
+  --shadow-card: 0 1px 2px rgba(26, 25, 23, 0.04), 0 12px 28px -22px rgba(26, 25, 23, 0.45);
+  --shadow-lift: 0 2px 4px rgba(26, 25, 23, 0.05), 0 18px 36px -24px rgba(26, 25, 23, 0.5);
+  --shadow-panel: 0 -8px 32px -24px rgba(26, 25, 23, 0.6);
+
+  --radius-card: 0.75rem;
+
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv05' 1, 'ss03' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+
+  /* Никакого горизонтального overflow на всём приложении */
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  #root {
+    min-height: 100dvh;
+    isolation: isolate;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Убираем спиннеры у numeric inputs — вводим только с клавиатуры */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  ::selection {
+    background: var(--color-clay-soft);
+    color: var(--color-ink);
+  }
+}
+
+@layer utilities {
+  .eyebrow {
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-bottom-nav {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Мягкая «бумажная» текстура для крупных пустых поверхностей */
+  .paper {
+    background-image: radial-gradient(circle at 1px 1px, rgba(26, 25, 23, 0.035) 1px, transparent 0);
+    background-size: 18px 18px;
+  }
+}
+
+/* --- Анимации: короткие и сдержанные, 150–250ms --- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes scan {
+  0% {
+    top: 8%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms var(--ease-out-soft) both;
+}
+.animate-rise-in {
+  animation: rise-in 220ms var(--ease-out-soft) both;
+}
+.animate-sheet-in {
+  animation: sheet-in 240ms var(--ease-out-soft) both;
+}
+.animate-toast-in {
+  animation: toast-in 200ms var(--ease-out-soft) both;
+}
+.animate-indeterminate {
+  animation: indeterminate 1.5s var(--ease-out-soft) infinite;
+}
+.animate-shimmer {
+  animation: shimmer 1.6s infinite;
+}
+.animate-scan {
+  animation: scan 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

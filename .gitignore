@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+.expo/
+*.log
+frontend/drawings-test/
+frontend/regression/
+frontend/composite-*.png
+frontend/analysis-debug.png
+frontend/preview-test.png
