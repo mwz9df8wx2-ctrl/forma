@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Power } from 'lucide-react'
 import type { CatalogItem, CatalogType } from '@shared/index'
 import { CATALOG_TYPE_LABELS, PRICE_UNIT_LABELS, formatRubles } from '@shared/index'
+import { usePermissions } from '@/hooks/usePermissions'
 import { createCatalogItem, disableCatalogItem, listCatalog } from '@/api/server/catalog'
 import { PageHeader } from '@/components/layout/AppShell'
 import { Badge } from '@/components/ui/Badge'
@@ -58,6 +59,10 @@ export function CatalogPage() {
   const navigate = useNavigate()
   const { session } = useSession()
   const { show, showError } = useToast()
+  // Каталог и цены меняет владелец. Кнопку прячем, чтобы не вести в отказ,
+  // но решение всё равно принимает сервер.
+  const { can } = usePermissions()
+  const mayEdit = can('catalog.edit')
 
   const [type, setType] = useState<CatalogType>('facade')
   const [items, setItems] = useState<CatalogItem[]>([])
@@ -169,17 +174,19 @@ export function CatalogPage() {
         subtitle={`${session.user.companyName} · то, что предлагается клиенту`}
         action={
           <div className="hidden lg:block">
-            <Button
-              variant="primary"
-              size="md"
-              icon={<Plus />}
-              onClick={() => {
-                setMaterial(type === 'countertop' ? 'quartz' : 'enamel')
-                setAdding(true)
-              }}
-            >
-              Добавить
-            </Button>
+            {mayEdit && (
+              <Button
+                variant="primary"
+                size="md"
+                icon={<Plus />}
+                onClick={() => {
+                  setMaterial(type === 'countertop' ? 'quartz' : 'enamel')
+                  setAdding(true)
+                }}
+              >
+                Добавить
+              </Button>
+            )}
           </div>
         }
       />
@@ -211,7 +218,7 @@ export function CatalogPage() {
           variant="primary"
           size="lg"
           fullWidth
-          className="mt-4 lg:hidden"
+          className={mayEdit ? 'mt-4 lg:hidden' : 'hidden'}
           icon={<Plus />}
           onClick={() => {
             setMaterial(type === 'countertop' ? 'quartz' : 'enamel')
@@ -268,7 +275,7 @@ export function CatalogPage() {
                       {!item.active && <Badge tone="neutral">Выключено</Badge>}
                     </div>
                   </div>
-                  {item.active && (
+                  {item.active && mayEdit && (
                     <IconButton
                       label={`Выключить «${item.name}»`}
                       size="sm"

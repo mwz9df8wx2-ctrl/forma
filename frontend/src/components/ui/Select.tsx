@@ -10,16 +10,21 @@ export interface SelectOption {
 export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
   label: string
   options: SelectOption[]
+  /** Подпись остаётся для программ чтения экрана, но не занимает место. */
+  hideLabel?: boolean
   hint?: string
 }
 
-export function Select({ label, options, hint, className, id, ...props }: SelectProps) {
+export function Select({ label, options, hideLabel, hint, className, id, ...props }: SelectProps) {
   const generatedId = useId()
   const selectId = id ?? generatedId
 
   return (
     <div className="min-w-0">
-      <label htmlFor={selectId} className="mb-1.5 block text-[0.8125rem] font-medium text-muted">
+      <label
+        htmlFor={selectId}
+        className={hideLabel ? 'sr-only' : 'mb-1.5 block text-[0.8125rem] font-medium text-muted'}
+      >
         {label}
       </label>
       <div className="relative">

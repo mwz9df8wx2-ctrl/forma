@@ -20,7 +20,7 @@ import {
   JOB_STAGE_LABELS,
   isTerminalStatus,
 } from '../../../shared/src/index.ts'
-import { requireAuth } from './auth.ts'
+import { requireAuth, requirePermission } from './auth.ts'
 
 /**
  * Запуск визуализации и наблюдение за ней.
@@ -43,7 +43,7 @@ const enqueueSchema = z.object({
 export function registerGenerationRoutes(router: Router): void {
   /** Кошелёк, цены и лимиты: фронтенд рисует остаток и стоимость запуска. */
   router.get('/api/v1/billing/wallet', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'billing.read')
     const limits = budgetLimits()
     return {
       wallet: readWallet(auth.companyId),
@@ -57,12 +57,12 @@ export function registerGenerationRoutes(router: Router): void {
   })
 
   router.get('/api/v1/billing/transactions', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'billing.read')
     return { transactions: listTransactions(auth.companyId) }
   })
 
   router.post('/api/v1/projects/:id/generations', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'generation.run')
     const input = enqueueSchema.parse(await readJson(ctx.req))
     const header = ctx.req.headers['idempotency-key']
     const idempotencyKey = typeof header === 'string' && header.length <= 200 ? header : null

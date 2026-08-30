@@ -1118,3 +1118,224 @@ describe('Смета', () => {
     assert.equal(response.status, 404)
   })
 })
+
+// --- M7: роли, права и сотрудники ------------------------------------------
+
+describe('Роли и права', () => {
+  let ownerToken = ''
+  let estimatorToken = ''
+  let constructorToken = ''
+  let projectId = ''
+  let estimatorId = ''
+
+  async function invite(email: string, role: string) {
+    const created = await api('/api/v1/users/invitations', {
+      method: 'POST',
+      token: ownerToken,
+      body: { email, role },
+    })
+    assert.equal(created.status, 201)
+    const accepted = await api('/api/v1/auth/accept-invitation', {
+      method: 'POST',
+      body: { token: created.body.token, name: email, password: 'parol12345' },
+    })
+    assert.equal(accepted.status, 201)
+    return { token: accepted.body.token as string, userId: accepted.body.user.id as string }
+  }
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Роли', name: 'Хозяин', email: 'roles@test.ru', password: 'parol12345' },
+    })
+    ownerToken = auth.body.token
+    // Пробный тариф рассчитан на двоих: для проверки ролей нужен тариф побольше.
+    testDb()
+      .prepare(
+        `UPDATE subscriptions SET plan_id = 'plan_master'
+          WHERE company_id = (SELECT company_id FROM users WHERE email = 'roles@test.ru')`,
+      )
+      .run()
+    projectId = await makeReadyProject(ownerToken, 'Кухня — роли')
+
+    const estimator = await invite('estimator@test.ru', 'estimator')
+    estimatorToken = estimator.token
+    estimatorId = estimator.userId
+    constructorToken = (await invite('constructor@test.ru', 'constructor')).token
+  })
+
+  it('приглашённый попадает в ту же компанию со своей ролью', async () => {
+    const me = await api('/api/v1/auth/me', { token: estimatorToken })
+    assert.equal(me.body.user.role, 'estimator')
+
+    const owner = await api('/api/v1/auth/me', { token: ownerToken })
+    assert.equal(me.body.user.companyId, owner.body.user.companyId)
+  })
+
+  it('отдаёт список прав текущей роли', async () => {
+    const response = await api('/api/v1/users/me/permissions', { token: constructorToken })
+    assert.equal(response.body.role, 'constructor')
+    assert.ok(response.body.permissions.includes('spec.edit'))
+    assert.ok(!response.body.permissions.includes('catalog.edit'))
+  })
+
+  it('замерщик читает каталог, но не меняет его', async () => {
+    const read = await api('/api/v1/catalog', { token: estimatorToken })
+    assert.equal(read.status, 200)
+
+    const write = await api('/api/v1/catalog', {
+      method: 'POST',
+      token: estimatorToken,
+      body: {
+        type: 'facade',
+        name: 'Попытка',
+        attributes: {
+          material: 'enamel',
+          colorName: 'Белый',
+          colorHex: '#FFFFFF',
+          finish: 'matte',
+          thicknessMm: 19,
+        },
+      },
+    })
+    assert.equal(write.status, 403)
+    assert.match(write.body.message, /владелец/i)
+  })
+
+  it('конструктор не запускает генерацию и не считает смету', async () => {
+    const generation = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token: constructorToken,
+      body: { quality: 'preview', variants: 1 },
+    })
+    assert.equal(generation.status, 403)
+
+    const estimate = await api(`/api/v1/projects/${projectId}/estimates`, {
+      method: 'POST',
+      token: constructorToken,
+      body: {
+        markupPercent: 0,
+        lines: [
+          { section: 'facade', catalogItemId: null, name: 'Фасады', unit: 'square_metre', quantityMilli: 1000, note: '' },
+        ],
+      },
+    })
+    assert.equal(estimate.status, 403)
+  })
+
+  it('конструктор правит спецификацию, но не согласовывает ревизию', async () => {
+    const spec = await api(`/api/v1/projects/${projectId}/spec`, {
+      method: 'POST',
+      token: constructorToken,
+      body: { spec: completeSpec, source: 'manual' },
+    })
+    assert.equal(spec.status, 201)
+
+    const revisions = await api(`/api/v1/projects/${projectId}/revisions`, { token: constructorToken })
+    const approve = await api(
+      `/api/v1/projects/${projectId}/revisions/${revisions.body.revisions[0].id}/approve`,
+      { method: 'POST', token: constructorToken, body: {} },
+    )
+    assert.equal(approve.status, 403)
+    assert.match(approve.body.message, /владелец/i)
+  })
+
+  it('замерщик не управляет сотрудниками', async () => {
+    const response = await api('/api/v1/users', { token: estimatorToken })
+    assert.equal(response.status, 403)
+  })
+
+  it('не принимает недействительное приглашение', async () => {
+    const response = await api('/api/v1/auth/accept-invitation', {
+      method: 'POST',
+      body: { token: 'a'.repeat(43), name: 'Никто', password: 'parol12345' },
+    })
+    assert.equal(response.status, 400)
+  })
+
+  it('приглашение нельзя использовать дважды', async () => {
+    const created = await api('/api/v1/users/invitations', {
+      method: 'POST',
+      token: ownerToken,
+      body: { email: 'second@test.ru', role: 'constructor' },
+    })
+    const first = await api('/api/v1/auth/accept-invitation', {
+      method: 'POST',
+      body: { token: created.body.token, name: 'Второй', password: 'parol12345' },
+    })
+    assert.equal(first.status, 201)
+
+    const again = await api('/api/v1/auth/accept-invitation', {
+      method: 'POST',
+      body: { token: created.body.token, name: 'Ещё раз', password: 'parol12345' },
+    })
+    assert.equal(again.status, 400)
+  })
+
+  it('в компании остаётся хотя бы один владелец', async () => {
+    const users = await api('/api/v1/users', { token: ownerToken })
+    const owner = users.body.users.find((user: any) => user.role === 'owner')
+    const response = await api(`/api/v1/users/${owner.id}`, {
+      method: 'PATCH',
+      token: ownerToken,
+      body: { role: 'estimator' },
+    })
+    assert.equal(response.status, 403)
+    assert.match(response.body.message, /владелец/i)
+  })
+
+  it('отключение сотрудника обрывает его сессию', async () => {
+    const before = await api('/api/v1/projects', { token: estimatorToken })
+    assert.equal(before.status, 200)
+
+    const disabled = await api(`/api/v1/users/${estimatorId}`, {
+      method: 'PATCH',
+      token: ownerToken,
+      body: { active: false },
+    })
+    assert.equal(disabled.status, 200)
+
+    const after = await api('/api/v1/projects', { token: estimatorToken })
+    assert.equal(after.status, 401)
+  })
+
+  it('чужие приглашения не видны', async () => {
+    const other = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Чужая команда', name: 'Гость', email: 'alien-team@test.ru', password: 'parol12345' },
+    })
+    const response = await api('/api/v1/users/invitations', { token: other.body.token })
+    assert.equal(response.status, 200)
+    assert.equal(response.body.invitations.length, 0)
+  })
+
+})
+
+describe('Лимит сотрудников по тарифу', () => {
+  it('пробный тариф не пускает третьего сотрудника', async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Пробная', name: 'Хозяин', email: 'trial@test.ru', password: 'parol12345' },
+    })
+    const token = auth.body.token
+
+    // Пробный тариф рассчитан на двоих: владелец и один сотрудник.
+    const first = await api('/api/v1/users/invitations', {
+      method: 'POST',
+      token,
+      body: { email: 'trial-one@test.ru', role: 'estimator' },
+    })
+    await api('/api/v1/auth/accept-invitation', {
+      method: 'POST',
+      body: { token: first.body.token, name: 'Первый', password: 'parol12345' },
+    })
+
+    const second = await api('/api/v1/users/invitations', {
+      method: 'POST',
+      token,
+      body: { email: 'trial-two@test.ru', role: 'constructor' },
+    })
+    assert.equal(second.status, 409)
+    assert.match(second.body.message, /тариф/i)
+  })
+})

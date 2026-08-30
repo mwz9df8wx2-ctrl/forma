@@ -2,10 +2,11 @@ import { randomBytes } from 'node:crypto'
 import * as z from 'zod'
 import { db, transaction } from '../db/connection.ts'
 import { createId, nowIso } from '../lib/ids.ts'
-import { badRequest, unauthorized } from '../lib/errors.ts'
+import { badRequest, forbidden, unauthorized } from '../lib/errors.ts'
 import { hashPassword, verifyPassword } from '../lib/password.ts'
 import { readJson, type RequestContext, type Router } from '../lib/http.ts'
 import { startTrial } from '../services/plans.ts'
+import { can, permissionDenialReason, type Permission } from '../../../shared/src/index.ts'
 
 /** Вход, регистрация компании и текущий пользователь. */
 
@@ -29,7 +30,7 @@ export interface AuthUser {
   role: string
 }
 
-function issueSession(userId: string): { token: string; expiresAt: string } {
+export function issueSession(userId: string): { token: string; expiresAt: string } {
   const token = randomBytes(32).toString('base64url')
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000).toISOString()
   db()
@@ -64,6 +65,21 @@ export function authenticate(header: string | undefined): AuthUser | null {
 export function requireAuth(ctx: RequestContext): AuthUser {
   if (!ctx.auth) throw unauthorized()
   return ctx.auth
+}
+
+/**
+ * Проверка права на сервере.
+ *
+ * Скрытая в интерфейсе кнопка — удобство, а не защита: запрос можно
+ * отправить и без неё. Поэтому право проверяется здесь, а сообщение
+ * объясняет, к кому идти за доступом.
+ */
+export function requirePermission(ctx: RequestContext, permission: Permission): AuthUser {
+  const auth = requireAuth(ctx)
+  if (!can(auth.role, permission)) {
+    throw forbidden(permissionDenialReason(permission))
+  }
+  return auth
 }
 
 function publicUser(userId: string) {

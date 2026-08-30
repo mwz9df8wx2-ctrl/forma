@@ -4,7 +4,7 @@ import { badRequest, paymentRequired } from '../lib/errors.ts'
 import { createId, nowIso } from '../lib/ids.ts'
 import { readJson, type Router } from '../lib/http.ts'
 import { writeAudit } from '../lib/audit.ts'
-import { requireAuth } from './auth.ts'
+import { requireAuth, requirePermission } from './auth.ts'
 import { loadProject, loadRevision, writeSpecRevision } from './projects.ts'
 import { applyMeasurements, describeSuggestions } from '../services/measurements.ts'
 import { parseText } from '../services/parser.ts'
@@ -121,7 +121,7 @@ export function registerMeasurementRoutes(router: Router): void {
    * Модель подключается по запросу и стоит кредит; правила работают всегда.
    */
   router.post('/api/v1/projects/:id/measurements/parse', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'measurement.edit')
     const project = loadProject(ctx.params.id, auth.companyId)
     const input = parseSchema.parse(await readJson(ctx.req))
     const spec = currentSpec(project.id, project.currentRevisionId)
@@ -195,7 +195,7 @@ export function registerMeasurementRoutes(router: Router): void {
 
   /** Подтверждение значений: только отсюда они попадают в спецификацию. */
   router.post('/api/v1/projects/:id/measurements/apply', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'measurement.edit')
     const project = loadProject(ctx.params.id, auth.companyId)
     const input = applySchema.parse(await readJson(ctx.req))
     const spec = currentSpec(project.id, project.currentRevisionId)

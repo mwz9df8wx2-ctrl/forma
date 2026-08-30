@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/Input'
 import { useDrawings } from '@/hooks/useDrawings'
 import { useProject } from '@/hooks/useProject'
 import { useSession } from '@/hooks/useSession'
+import { usePermissions } from '@/hooks/usePermissions'
 import { useToast } from '@/hooks/useToast'
 import { formatDate } from '@/lib/format'
 
@@ -53,6 +54,9 @@ export function PackagePage() {
   const { serverProject, project } = useProject()
   const { drawings, layout, params, title } = useDrawings()
   const { showError, show } = useToast()
+  // Смету считает владелец или замерщик: конструктору цены не показываем
+  // как решение, а не как запрет — сервер проверит это заново.
+  const { can } = usePermissions()
 
   const [items, setItems] = useState<CatalogItem[]>([])
   const [estimate, setEstimate] = useState<Estimate | null>(null)
@@ -294,7 +298,19 @@ export function PackagePage() {
                   сохраняет снимком: согласованная сумма не изменится, если материал подорожает.
                 </p>
 
-                <div className="print-hide mt-4 flex flex-wrap items-end gap-3">
+                {!can('estimate.create') && (
+                  <p className="print-hide mt-3 text-[0.875rem] leading-relaxed text-muted">
+                    Считать смету может владелец или замерщик. Чертежи и техпакет доступны всем.
+                  </p>
+                )}
+
+                <div
+                  className={
+                    can('estimate.create')
+                      ? 'print-hide mt-4 flex flex-wrap items-end gap-3'
+                      : 'hidden'
+                  }
+                >
                   <div className="w-40">
                     <Input
                       label="Наценка, %"

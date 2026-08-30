@@ -4,7 +4,7 @@ import { badRequest, notFound } from '../lib/errors.ts'
 import { createId, nowIso } from '../lib/ids.ts'
 import { readJson, type Router } from '../lib/http.ts'
 import { writeAudit } from '../lib/audit.ts'
-import { requireAuth } from './auth.ts'
+import { requirePermission } from './auth.ts'
 import { loadProject } from './projects.ts'
 import {
   estimateRequestLineSchema,
@@ -77,7 +77,7 @@ function priceOf(catalogItemId: string | null, companyId: string): number | null
 
 export function registerEstimateRoutes(router: Router): void {
   router.post('/api/v1/projects/:id/estimates', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'estimate.create')
     const project = loadProject(ctx.params.id, auth.companyId)
     if (!project.currentRevisionId) throw badRequest('У проекта нет сохранённой спецификации')
     const input = createSchema.parse(await readJson(ctx.req))
@@ -124,7 +124,7 @@ export function registerEstimateRoutes(router: Router): void {
   })
 
   router.get('/api/v1/projects/:id/estimates', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'estimate.read')
     const project = loadProject(ctx.params.id, auth.companyId)
     const rows = db()
       .prepare(
@@ -136,7 +136,7 @@ export function registerEstimateRoutes(router: Router): void {
   })
 
   router.get('/api/v1/estimates/:id', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'estimate.read')
     const row = db()
       .prepare(`SELECT ${COLUMNS} FROM estimates WHERE id = ? AND company_id = ?`)
       .get(ctx.params.id, auth.companyId) as unknown as EstimateRow | undefined

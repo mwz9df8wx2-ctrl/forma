@@ -12,7 +12,7 @@ import { db, transaction } from '../db/connection.ts'
 import { badRequest, conflict, notFound } from '../lib/errors.ts'
 import { createId, nowIso } from '../lib/ids.ts'
 import { readJson, type RequestContext, type Router } from '../lib/http.ts'
-import { requireAuth } from './auth.ts'
+import { requireAuth, requirePermission } from './auth.ts'
 import { writeAudit } from '../lib/audit.ts'
 
 /**
@@ -217,7 +217,7 @@ export function registerProjectRoutes(router: Router): void {
   })
 
   router.post('/api/v1/projects', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'project.create')
     const input = createProjectSchema.parse(await readJson(ctx.req))
 
     return transaction(() => {
@@ -272,7 +272,7 @@ export function registerProjectRoutes(router: Router): void {
   })
 
   router.patch('/api/v1/projects/:id', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'project.edit')
     const project = loadProject(ctx.params.id, auth.companyId)
     const input = updateProjectSchema.parse(await readJson(ctx.req))
 
@@ -291,7 +291,7 @@ export function registerProjectRoutes(router: Router): void {
   })
 
   router.delete('/api/v1/projects/:id', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'project.archive')
     const project = loadProject(ctx.params.id, auth.companyId)
     touchProject(project.id, { archived_at: nowIso(), status: 'archived' })
     writeAudit(auth, 'project.archived', project.id, null)
@@ -315,7 +315,7 @@ export function registerProjectRoutes(router: Router): void {
    * Черновая ревизия правится на месте, согласованная — порождает новую.
    */
   router.post('/api/v1/projects/:id/spec', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'spec.edit')
     const project = loadProject(ctx.params.id, auth.companyId)
     const input = saveSpecSchema.parse(await readJson(ctx.req))
     return writeSpecRevision(auth, project, input.spec, input.source)
@@ -323,7 +323,7 @@ export function registerProjectRoutes(router: Router): void {
 
   /** Согласование: ревизия блокируется, дальше только новая. */
   router.post('/api/v1/projects/:id/revisions/:revisionId/approve', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'revision.approve')
     const project = loadProject(ctx.params.id, auth.companyId)
     const revision = loadRevision(ctx.params.revisionId, project.id)
     const input = approveSchema.parse(await readJson(ctx.req).catch(() => ({})))

@@ -11,6 +11,7 @@ import { CatalogPage } from '@/pages/CatalogPage'
 import { DrawingsPage } from '@/pages/DrawingsPage'
 import { GenerationPage } from '@/pages/GenerationPage'
 import { HomePage } from '@/pages/HomePage'
+import { InvitePage } from '@/pages/InvitePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MeasurementsPage } from '@/pages/MeasurementsPage'
 import { PackagePage } from '@/pages/PackagePage'
@@ -67,6 +68,7 @@ export function App() {
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/invite" element={<InvitePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </AppShell>

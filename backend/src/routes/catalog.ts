@@ -9,7 +9,7 @@ import { db } from '../db/connection.ts'
 import { badRequest, notFound } from '../lib/errors.ts'
 import { createId, nowIso } from '../lib/ids.ts'
 import { readJson, type Router } from '../lib/http.ts'
-import { requireAuth } from './auth.ts'
+import { requirePermission } from './auth.ts'
 import { writeAudit } from '../lib/audit.ts'
 
 /**
@@ -64,7 +64,7 @@ const updateSchema = catalogItemInputSchema.partial().omit({ type: true })
 
 export function registerCatalogRoutes(router: Router): void {
   router.get('/api/v1/catalog', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'catalog.read')
     const type = ctx.query.get('type')
     const includeInactive = ctx.query.get('inactive') === 'true'
 
@@ -87,7 +87,7 @@ export function registerCatalogRoutes(router: Router): void {
   })
 
   router.post('/api/v1/catalog', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'catalog.edit')
     const input = catalogItemInputSchema.parse(await readJson(ctx.req))
     // Атрибуты проверяются схемой своего типа: чужие поля не пройдут.
     const attributes = parseCatalogAttributes(input.type, input.attributes)
@@ -125,7 +125,7 @@ export function registerCatalogRoutes(router: Router): void {
   })
 
   router.patch('/api/v1/catalog/:id', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'catalog.edit')
     const existing = db()
       .prepare(`SELECT ${COLUMNS} FROM catalog_items WHERE id = ? AND company_id = ?`)
       .get(ctx.params.id, auth.companyId) as unknown as CatalogRow | undefined
@@ -181,7 +181,7 @@ export function registerCatalogRoutes(router: Router): void {
 
   /** Запись не удаляется, а выключается: на неё могут ссылаться старые ревизии. */
   router.delete('/api/v1/catalog/:id', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'catalog.edit')
     const result = db()
       .prepare('UPDATE catalog_items SET active = 0, updated_at = ? WHERE id = ? AND company_id = ?')
       .run(nowIso(), ctx.params.id, auth.companyId)
@@ -191,7 +191,7 @@ export function registerCatalogRoutes(router: Router): void {
   })
 
   router.get('/api/v1/production-profile', (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'catalog.read')
     const row = db()
       .prepare(
         `SELECT id, name, settings FROM production_profiles
@@ -204,7 +204,7 @@ export function registerCatalogRoutes(router: Router): void {
   })
 
   router.patch('/api/v1/production-profile', async (ctx) => {
-    const auth = requireAuth(ctx)
+    const auth = requirePermission(ctx, 'settings.edit')
     const input = productionProfileSchema.parse(await readJson(ctx.req))
     const existing = db()
       .prepare('SELECT id FROM production_profiles WHERE company_id = ? ORDER BY is_default DESC LIMIT 1')

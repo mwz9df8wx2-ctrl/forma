@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Server, Smartphone, Trash2 } from 'lucide-react'
 import { API_URL, USE_MOCK_API, getGenerationSource, loadAiSettings, type AiSettings } from '@/api'
 import { BillingCard } from '@/components/billing/BillingCard'
+import { TeamCard } from '@/components/team/TeamCard'
 import { AccountCard } from '@/components/settings/AccountCard'
 import { AiSettingsCard } from '@/components/settings/AiSettingsCard'
 import { ClaudeCard } from '@/components/settings/ClaudeCard'
@@ -67,6 +68,8 @@ export function ProfilePage() {
           <AccountCard />
 
           <BillingCard />
+
+          <TeamCard />
 
           <section className="rounded-2xl border border-line bg-surface p-5">
             <div className="mb-3 flex items-center justify-between gap-3">

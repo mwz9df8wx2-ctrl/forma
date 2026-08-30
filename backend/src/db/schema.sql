@@ -285,3 +285,20 @@ CREATE TABLE IF NOT EXISTS estimates (
   created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS estimates_project ON estimates(project_id, created_at DESC);
+
+-- Приглашение сотрудника.
+-- Пароль сотрудник задаёт сам: владелец не должен знать чужой пароль,
+-- а временный пароль в переписке живёт дольше, чем нужно.
+CREATE TABLE IF NOT EXISTS invitations (
+  id          TEXT PRIMARY KEY,
+  company_id  TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL,
+  token_hash  TEXT NOT NULL,
+  invited_by  TEXT NOT NULL REFERENCES users(id),
+  accepted_at TEXT,
+  expires_at  TEXT NOT NULL,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS invitations_company ON invitations(company_id, accepted_at);
+CREATE UNIQUE INDEX IF NOT EXISTS invitations_token ON invitations(token_hash);
