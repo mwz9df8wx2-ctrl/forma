@@ -137,3 +137,117 @@ CREATE TABLE IF NOT EXISTS catalog_items (
   updated_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS catalog_company_type ON catalog_items(company_id, type, active);
+
+-- Тарифы и подписки.
+-- Деньги хранятся в копейках целыми числами: с плавающей точкой в деньгах
+-- рано или поздно теряются копейки.
+CREATE TABLE IF NOT EXISTS plans (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL,
+  monthly_price    INTEGER NOT NULL,
+  included_credits INTEGER NOT NULL,
+  max_users        INTEGER NOT NULL DEFAULT 5,
+  features         TEXT NOT NULL DEFAULT '{}',
+  active           INTEGER NOT NULL DEFAULT 1,
+  created_at       TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id            TEXT PRIMARY KEY,
+  company_id    TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  plan_id       TEXT NOT NULL REFERENCES plans(id),
+  status        TEXT NOT NULL DEFAULT 'active',
+  period_start  TEXT NOT NULL,
+  period_end    TEXT NOT NULL,
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS subscriptions_company ON subscriptions(company_id, status);
+
+-- Кошелёк кредитов компании. Баланс не редактируется напрямую:
+-- любое изменение проходит через журнал операций.
+CREATE TABLE IF NOT EXISTS credit_wallets (
+  company_id  TEXT PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+  balance     INTEGER NOT NULL DEFAULT 0,
+  reserved    INTEGER NOT NULL DEFAULT 0,
+  updated_at  TEXT NOT NULL
+);
+
+-- Журнал операций с кредитами: нужен для поддержки, споров и возвратов.
+CREATE TABLE IF NOT EXISTS usage_transactions (
+  id                      TEXT PRIMARY KEY,
+  company_id              TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  user_id                 TEXT REFERENCES users(id),
+  project_id              TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  job_id                  TEXT,
+  type                    TEXT NOT NULL,
+  credit_delta            INTEGER NOT NULL,
+  balance_before          INTEGER NOT NULL,
+  balance_after           INTEGER NOT NULL,
+  estimated_cost_kopecks  INTEGER NOT NULL DEFAULT 0,
+  actual_cost_kopecks     INTEGER,
+  provider                TEXT,
+  model                   TEXT,
+  status                  TEXT NOT NULL DEFAULT 'completed',
+  created_at              TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS usage_company ON usage_transactions(company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS usage_job ON usage_transactions(job_id);
+
+-- Задание на генерацию. Долгая операция не живёт в одном HTTP-запросе.
+CREATE TABLE IF NOT EXISTS generation_jobs (
+  id                TEXT PRIMARY KEY,
+  company_id        TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  revision_id       TEXT NOT NULL REFERENCES project_revisions(id),
+  created_by        TEXT NOT NULL REFERENCES users(id),
+  status            TEXT NOT NULL DEFAULT 'queued',
+  stage             TEXT,
+  variants          INTEGER NOT NULL DEFAULT 3,
+  quality           TEXT NOT NULL DEFAULT 'preview',
+  size              TEXT NOT NULL DEFAULT '1536x1024',
+  seed              INTEGER NOT NULL DEFAULT 0,
+  notes             TEXT NOT NULL DEFAULT '',
+  reference_file_id TEXT REFERENCES project_files(id) ON DELETE SET NULL,
+  provider          TEXT NOT NULL,
+  model             TEXT,
+  credits_reserved  INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_kopecks INTEGER NOT NULL DEFAULT 0,
+  actual_cost_kopecks    INTEGER,
+  attempts          INTEGER NOT NULL DEFAULT 0,
+  error_code        TEXT,
+  error_message     TEXT,
+  idempotency_key   TEXT,
+  created_at        TEXT NOT NULL,
+  started_at        TEXT,
+  finished_at       TEXT
+);
+CREATE INDEX IF NOT EXISTS jobs_company ON generation_jobs(company_id, status);
+CREATE INDEX IF NOT EXISTS jobs_queue ON generation_jobs(status, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS jobs_idempotency
+  ON generation_jobs(company_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS visualization_options (
+  id            TEXT PRIMARY KEY,
+  company_id    TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  revision_id   TEXT NOT NULL REFERENCES project_revisions(id),
+  job_id        TEXT NOT NULL REFERENCES generation_jobs(id) ON DELETE CASCADE,
+  option_index  INTEGER NOT NULL,
+  file_id       TEXT REFERENCES project_files(id) ON DELETE SET NULL,
+  provider      TEXT NOT NULL,
+  model         TEXT,
+  prompt_version TEXT NOT NULL DEFAULT 'v1',
+  params        TEXT NOT NULL DEFAULT '{}',
+  selected      INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS options_project ON visualization_options(project_id, created_at DESC);
+
+-- Настройки платформы: стоимость операций в кредитах и жёсткие лимиты.
+-- Меняются администратором без пересборки приложения.
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);

@@ -9,3 +9,6 @@ frontend/regression/
 frontend/composite-*.png
 frontend/analysis-debug.png
 frontend/preview-test.png
+
+# Локальная база и загруженные файлы: рабочие данные, не исходники.
+backend/data/

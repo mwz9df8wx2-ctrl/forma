@@ -5,6 +5,7 @@ import { createId, nowIso } from '../lib/ids.ts'
 import { badRequest, unauthorized } from '../lib/errors.ts'
 import { hashPassword, verifyPassword } from '../lib/password.ts'
 import { readJson, type RequestContext, type Router } from '../lib/http.ts'
+import { startTrial } from '../services/plans.ts'
 
 /** Вход, регистрация компании и текущий пользователь. */
 
@@ -95,6 +96,10 @@ export function registerAuthRoutes(router: Router): void {
            VALUES (?, ?, ?, ?, ?, 'owner', ?)`,
         )
         .run(userId, companyId, input.email, input.name, hashPassword(input.password), now)
+
+      // Пробный тариф и стартовые кредиты выдаются в той же транзакции:
+      // компания без кошелька упёрлась бы в оплату на первом же запуске.
+      startTrial(companyId)
 
       const session = issueSession(userId)
       return { token: session.token, expiresAt: session.expiresAt, user: publicUser(userId) }

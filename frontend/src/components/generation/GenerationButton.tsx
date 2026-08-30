@@ -1,6 +1,11 @@
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { useBilling } from '@/hooks/useBilling'
 import { cn } from '@/lib/cn'
+import { plural } from '@/lib/format'
+
+/** Сколько кредитов спишет один запуск. Столько же считает сервер. */
+const VARIANTS_PER_RUN = 3
 
 export function GenerationButton({
   onClick,
@@ -15,10 +20,20 @@ export function GenerationButton({
   missing: string[]
   className?: string
 }) {
+  const { serverGeneration, wallet, costs } = useBilling()
+  const cost = serverGeneration && costs ? costs.preview * VARIANTS_PER_RUN : 0
+  // Проверку всё равно повторит сервер: здесь она нужна только чтобы не вести
+  // пользователя в отказ.
+  const noCredits = cost > 0 && wallet !== null && wallet.available < cost
+
   const hint =
     missing.length > 0
       ? `Выберите ${missing.slice(0, 2).join(' и ')}`
-      : 'Обычно занимает меньше минуты'
+      : noCredits
+        ? 'AI-кредиты закончились. Расчёты и чертежи продолжают работать.'
+        : cost > 0
+          ? `Спишется ${cost} ${plural(cost, ['AI-кредит', 'AI-кредита', 'AI-кредитов'])} · обычно меньше минуты`
+          : 'Обычно занимает меньше минуты'
 
   return (
     <div className={cn('w-full', className)}>
@@ -28,7 +43,7 @@ export function GenerationButton({
         fullWidth
         icon={<Sparkles />}
         onClick={onClick}
-        disabled={disabled}
+        disabled={disabled || noCredits}
         loading={loading}
       >
         Создать визуализацию
@@ -36,7 +51,7 @@ export function GenerationButton({
       <p
         className={cn(
           'mt-2 text-center text-xs',
-          missing.length > 0 ? 'text-clay' : 'text-faint',
+          missing.length > 0 || noCredits ? 'text-clay' : 'text-faint',
         )}
       >
         {hint}

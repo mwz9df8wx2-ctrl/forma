@@ -1,6 +1,8 @@
 import { applySchema, db } from './db/connection.ts'
 import { createId, nowIso } from './lib/ids.ts'
 import { hashPassword } from './lib/password.ts'
+import { startTrial } from './services/plans.ts'
+import { grantCredits, readWallet } from './services/credits.ts'
 import { defaultProductionProfile, emptySpec } from '../../shared/src/index.ts'
 
 /**
@@ -155,8 +157,13 @@ db()
   )
   .run(createId('prf'), companyId, JSON.stringify(defaultProductionProfile()), now)
 
+// Пробный тариф плюс запас кредитов, чтобы демонстрацию не прерывала оплата.
+startTrial(companyId)
+grantCredits(companyId, 40, 'adjustment', userId)
+
 console.log('')
 console.log('  Демо-данные созданы.')
+console.log(`  AI-кредиты: ${readWallet(companyId).available}`)
 console.log(`  Каталог: ${catalogSeed.length} записей с пометкой DEMO`)
 console.log(`  Почта:  ${email}`)
 console.log('  Пароль: demo12345')

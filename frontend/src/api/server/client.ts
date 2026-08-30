@@ -55,7 +55,9 @@ interface RequestOptions {
 
 function mapStatus(status: number): AppError['code'] {
   if (status === 401 || status === 403) return 'not_found'
+  if (status === 402) return 'no_credits'
   if (status === 404) return 'not_found'
+  if (status === 429) return 'rate_limited'
   if (status === 413) return 'photo_too_large'
   if (status === 503) return 'unavailable'
   if (status >= 500) return 'server'

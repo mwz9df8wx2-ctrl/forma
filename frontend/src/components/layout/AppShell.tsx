@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutGrid, Package, Ruler, Sparkles, User } from 'lucide-react'
 import { getGenerationSource } from '@/api'
+import { CreditsCard } from '@/components/billing/CreditsCard'
+import { useBilling } from '@/hooks/useBilling'
 import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/cn'
 import { Logo } from './Logo'
@@ -116,7 +118,10 @@ function Sidebar() {
         ))}
       </nav>
 
-      <SourceNote />
+      <div className="mt-auto space-y-2.5">
+        <CreditsCard />
+        <SourceNote />
+      </div>
     </aside>
   )
 }
@@ -124,23 +129,28 @@ function Sidebar() {
 /** Подсказка внизу боковой панели: чем сейчас создаются визуализации. */
 function SourceNote() {
   const { session } = useSession()
+  const { serverGeneration } = useBilling()
   const source = getGenerationSource()
 
   // Вход в компанию важнее способа расчёта картинки: он говорит, где живут
   // проекты, каталог и ключи.
-  const title = session
-    ? 'Сервер компании подключён'
-    : source === 'ai'
-      ? 'Подключён сервис генерации'
-      : 'Автономный режим'
-  const text = session
-    ? 'Проекты, каталог и ключи хранятся на сервере. Визуализации считаются на устройстве.'
-    : source === 'ai'
-      ? 'Изображения создаёт подключённый сервис ИИ.'
-      : 'Проекты и визуализации хранятся на этом устройстве.'
+  const title = serverGeneration
+    ? 'Генерация на сервере компании'
+    : session
+      ? 'Сервер компании подключён'
+      : source === 'ai'
+        ? 'Подключён сервис генерации'
+        : 'Автономный режим'
+  const text = serverGeneration
+    ? 'Изображения считает сервер и списывает AI-кредиты. Проекты и каталог хранятся там же.'
+    : session
+      ? 'Проекты, каталог и ключи хранятся на сервере. Визуализации считаются на устройстве.'
+      : source === 'ai'
+        ? 'Изображения создаёт подключённый сервис ИИ.'
+        : 'Проекты и визуализации хранятся на этом устройстве.'
 
   return (
-    <div className="mt-auto rounded-xl border border-line bg-surface-2 p-3.5">
+    <div className="rounded-xl border border-line bg-surface-2 p-3.5">
       <p className="text-[0.8125rem] leading-snug font-medium text-ink">{title}</p>
       <p className="mt-1 text-xs leading-snug text-muted">{text}</p>
     </div>

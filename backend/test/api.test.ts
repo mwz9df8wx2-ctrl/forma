@@ -506,3 +506,297 @@ describe('Производственный профиль', () => {
     assert.equal(response.status, 400)
   })
 })
+
+// --- M3: кредиты, лимиты и очередь заданий ---------------------------------
+
+const { env: serverEnv } = await import('../src/env.ts')
+const { setImageProvider, MockImageProvider } = await import('../src/providers/images.ts')
+const { db: testDb } = await import('../src/db/connection.ts')
+
+/** Ожидание завершения задания опросом — так же, как это делает браузер. */
+async function waitForJob(token: string, jobId: string, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs
+  let last: any = null
+  while (Date.now() < deadline) {
+    const response = await api(`/api/v1/generations/${jobId}`, { token })
+    last = response.body?.job
+    if (last && (last.status === 'completed' || last.status === 'failed')) return last
+    await new Promise((done) => setTimeout(done, 25))
+  }
+  return last
+}
+
+async function makeReadyProject(token: string, title: string) {
+  const created = await api('/api/v1/projects', { method: 'POST', token, body: { title } })
+  const projectId = created.body.project.id
+  await api(`/api/v1/projects/${projectId}/spec`, {
+    method: 'POST',
+    token,
+    body: { spec: completeSpec, source: 'manual' },
+  })
+  return projectId as string
+}
+
+describe('Кредиты и очередь генерации', () => {
+  let token = ''
+  let projectId = ''
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Кредиты', name: 'Кассир', email: 'credits@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+    projectId = await makeReadyProject(token, 'Кухня — кредиты')
+    setImageProvider(new MockImageProvider())
+  })
+
+  after(() => setImageProvider(null))
+
+  it('новая компания получает пробные кредиты', async () => {
+    const response = await api('/api/v1/billing/wallet', { token })
+    assert.equal(response.status, 200)
+    assert.equal(response.body.wallet.available, 10)
+    assert.equal(response.body.wallet.reserved, 0)
+    assert.equal(response.body.costs.preview, 1)
+  })
+
+  it('задание проходит стадии и сохраняет варианты', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 2, seed: 42 },
+    })
+    assert.equal(response.status, 201)
+    assert.equal(response.body.cost, 2)
+
+    const job = await waitForJob(token, response.body.job.id)
+    assert.equal(job.status, 'completed')
+    assert.equal(job.options.length, 2)
+    assert.equal(job.creditsReserved, 2)
+
+    // Варианты должны быть настоящими файлами, а не записями в базе.
+    const file = await api(job.options[0].url, { token })
+    assert.equal(file.status, 200)
+  })
+
+  it('списывает кредиты один раз и закрывает резерв', async () => {
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    assert.equal(wallet.body.wallet.available, 8)
+    assert.equal(wallet.body.wallet.reserved, 0)
+
+    const ledger = await api('/api/v1/billing/transactions', { token })
+    const types = ledger.body.transactions.map((item: any) => item.type)
+    assert.deepEqual(types, ['charge', 'grant'])
+
+    const charge = ledger.body.transactions[0]
+    assert.equal(charge.creditDelta, -2)
+    assert.equal(charge.balanceBefore, 10)
+    assert.equal(charge.balanceAfter, 8)
+  })
+
+  it('сумма журнала совпадает с балансом', async () => {
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    const ledger = await api('/api/v1/billing/transactions', { token })
+    const sum = ledger.body.transactions.reduce((total: number, item: any) => total + item.creditDelta, 0)
+    assert.equal(sum, wallet.body.wallet.balance)
+  })
+
+  it('повтор с тем же ключом идемпотентности не создаёт второе задание', async () => {
+    const headers = { 'Idempotency-Key': 'one-button-double-click' }
+    const first = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      headers,
+      body: { quality: 'preview', variants: 1 },
+    })
+    const second = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      headers,
+      body: { quality: 'preview', variants: 1 },
+    })
+
+    assert.equal(first.body.job.id, second.body.job.id)
+    assert.equal(second.body.reused, true)
+    await waitForJob(token, first.body.job.id)
+
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    // Списан ровно один кредит, а не два.
+    assert.equal(wallet.body.wallet.available, 7)
+  })
+
+  it('не запускает генерацию без замеров', async () => {
+    const empty = await api('/api/v1/projects', {
+      method: 'POST',
+      token,
+      body: { title: 'Кухня без размеров' },
+    })
+    const before = await api('/api/v1/billing/wallet', { token })
+    const response = await api(`/api/v1/projects/${empty.body.project.id}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1 },
+    })
+    assert.equal(response.status, 400)
+    const after = await api('/api/v1/billing/wallet', { token })
+    assert.equal(after.body.wallet.available, before.body.wallet.available)
+  })
+
+  it('чужое задание не отдаётся', async () => {
+    const other = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Чужие', name: 'Гость', email: 'alien-jobs@test.ru', password: 'parol12345' },
+    })
+    const jobs = await api(`/api/v1/projects/${projectId}/generations`, { token })
+    const response = await api(`/api/v1/generations/${jobs.body.jobs[0].id}`, { token: other.body.token })
+    assert.equal(response.status, 404)
+  })
+
+  it('ограничивает число вариантов за один запуск', async () => {
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 8 },
+    })
+    assert.equal(response.status, 400)
+  })
+})
+
+describe('Отказы и возвраты', () => {
+  let token = ''
+  let projectId = ''
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Возвраты', name: 'Мастер', email: 'refund@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+    projectId = await makeReadyProject(token, 'Кухня — возвраты')
+  })
+
+  after(() => {
+    setImageProvider(null)
+    serverEnv.aiEnabled = true
+  })
+
+  it('возвращает кредиты при сбое провайдера', async () => {
+    setImageProvider({
+      name: 'broken',
+      model: 'broken-1',
+      estimateKopecks: () => 0,
+      generate: async () => {
+        throw new Error('Провайдер недоступен')
+      },
+      isTransient: () => false,
+    })
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'final', variants: 2 },
+    })
+    assert.equal(response.status, 201)
+
+    const job = await waitForJob(token, response.body.job.id)
+    assert.equal(job.status, 'failed')
+    assert.equal(job.attempts, 1) // постоянную ошибку не повторяем
+
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    assert.equal(wallet.body.wallet.available, 10)
+    assert.equal(wallet.body.wallet.reserved, 0)
+
+    const ledger = await api('/api/v1/billing/transactions', { token })
+    assert.equal(ledger.body.transactions[0].type, 'refund')
+    assert.equal(ledger.body.transactions[0].creditDelta, 4)
+  })
+
+  it('повторяет временную ошибку, но платит один раз', async () => {
+    let calls = 0
+    const mock = new MockImageProvider()
+    setImageProvider({
+      name: 'flaky',
+      model: 'flaky-1',
+      estimateKopecks: () => 0,
+      generate: async (request) => {
+        calls += 1
+        if (calls === 1) throw new Error('таймаут сети')
+        return mock.generate(request)
+      },
+      isTransient: () => true,
+    })
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1 },
+    })
+    const job = await waitForJob(token, response.body.job.id)
+    assert.equal(job.status, 'completed')
+    assert.equal(job.attempts, 2)
+    assert.equal(calls, 2)
+
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    assert.equal(wallet.body.wallet.available, 9)
+  })
+
+  it('отказывает при нулевом балансе и не трогает остальное приложение', async () => {
+    setImageProvider(new MockImageProvider())
+    testDb()
+      .prepare('UPDATE credit_wallets SET balance = 0 WHERE company_id = (SELECT company_id FROM projects WHERE id = ?)')
+      .run(projectId)
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1 },
+    })
+    assert.equal(response.status, 402)
+    assert.match(response.body.message, /кредиты закончились/i)
+
+    // Проекты продолжают работать — это обещание из интерфейса.
+    const projects = await api('/api/v1/projects', { token })
+    assert.equal(projects.status, 200)
+  })
+
+  it('общий выключатель останавливает новые запуски', async () => {
+    testDb()
+      .prepare('UPDATE credit_wallets SET balance = 10 WHERE company_id = (SELECT company_id FROM projects WHERE id = ?)')
+      .run(projectId)
+    serverEnv.aiEnabled = false
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1 },
+    })
+    assert.equal(response.status, 503)
+
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    assert.equal(wallet.body.wallet.available, 10)
+    serverEnv.aiEnabled = true
+  })
+
+  it('останавливает запуск при исчерпанном бюджете', async () => {
+    setImageProvider({
+      name: 'dear',
+      model: 'dear-1',
+      // Оценка выше месячного лимита пользователя.
+      estimateKopecks: () => 400_000,
+      generate: async () => ({ images: [], model: 'dear-1', actualCostKopecks: 0 }),
+      isTransient: () => false,
+    })
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1 },
+    })
+    assert.equal(response.status, 429)
+
+    const wallet = await api('/api/v1/billing/wallet', { token })
+    assert.equal(wallet.body.wallet.available, 10)
+    setImageProvider(new MockImageProvider())
+  })
+})

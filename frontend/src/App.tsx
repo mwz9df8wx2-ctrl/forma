@@ -6,6 +6,7 @@ import { CatalogProvider } from '@/state/CatalogProvider'
 import { ProjectProvider } from '@/state/ProjectProvider'
 import { ToastProvider } from '@/state/ToastProvider'
 import { SessionProvider } from '@/state/SessionProvider'
+import { BillingProvider } from '@/state/BillingProvider'
 import { CatalogPage } from '@/pages/CatalogPage'
 import { DrawingsPage } from '@/pages/DrawingsPage'
 import { GenerationPage } from '@/pages/GenerationPage'
@@ -47,25 +48,27 @@ export function App() {
     <BrowserRouter>
       <ToastProvider>
         <SessionProvider>
-          <CatalogProvider>
-            <ProjectProvider>
-              <ScrollToTop />
-              <AppShell>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/setup" element={<ProjectPage />} />
-                  <Route path="/generation" element={<GenerationPage />} />
-                  <Route path="/results" element={<ResultsPage />} />
-                  <Route path="/drawings" element={<DrawingsPage />} />
-                  <Route path="/catalog" element={<CatalogPage />} />
-                  <Route path="/projects" element={<ProjectsPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </AppShell>
-            </ProjectProvider>
-          </CatalogProvider>
+          <BillingProvider>
+            <CatalogProvider>
+              <ProjectProvider>
+                <ScrollToTop />
+                <AppShell>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/setup" element={<ProjectPage />} />
+                    <Route path="/generation" element={<GenerationPage />} />
+                    <Route path="/results" element={<ResultsPage />} />
+                    <Route path="/drawings" element={<DrawingsPage />} />
+                    <Route path="/catalog" element={<CatalogPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </AppShell>
+              </ProjectProvider>
+            </CatalogProvider>
+          </BillingProvider>
         </SessionProvider>
       </ToastProvider>
     </BrowserRouter>

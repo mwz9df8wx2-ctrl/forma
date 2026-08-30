@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, Server, Smartphone, Trash2 } from 'lucide-react'
 import { API_URL, USE_MOCK_API, getGenerationSource, loadAiSettings, type AiSettings } from '@/api'
+import { BillingCard } from '@/components/billing/BillingCard'
 import { AccountCard } from '@/components/settings/AccountCard'
 import { AiSettingsCard } from '@/components/settings/AiSettingsCard'
 import { ClaudeCard } from '@/components/settings/ClaudeCard'
@@ -64,6 +65,8 @@ export function ProfilePage() {
       <div className="px-5 pt-7 pb-10 lg:px-10">
         <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
           <AccountCard />
+
+          <BillingCard />
 
           <section className="rounded-2xl border border-line bg-surface p-5">
             <div className="mb-3 flex items-center justify-between gap-3">

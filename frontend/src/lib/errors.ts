@@ -7,6 +7,8 @@ export type AppErrorCode =
   | 'camera_denied'
   | 'camera_unavailable'
   | 'not_found'
+  | 'no_credits'
+  | 'rate_limited'
   | 'cancelled'
   | 'unknown'
 
@@ -32,6 +34,8 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   camera_denied: 'Нет доступа к камере. Разрешите съёмку в настройках браузера.',
   camera_unavailable: 'Камера недоступна на этом устройстве.',
   not_found: 'Проект не найден.',
+  no_credits: 'AI-кредиты закончились. Проекты, расчёты и чертежи продолжают работать.',
+  rate_limited: 'Слишком много запусков подряд. Подождите немного.',
   cancelled: 'Создание визуализации отменено.',
   unknown: 'Что-то пошло не так. Попробуйте ещё раз.',
 }

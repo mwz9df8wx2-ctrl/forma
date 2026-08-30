@@ -18,3 +18,7 @@ export const notFound = (message = 'Не найдено') => new HttpError(404, 
 export const conflict = (message: string) => new HttpError(409, 'conflict', message)
 export const tooLarge = (message: string) => new HttpError(413, 'too_large', message)
 export const unavailable = (message: string) => new HttpError(503, 'unavailable', message)
+/** Кредиты закончились: 402 отличает нехватку оплаты от конфликта состояния. */
+export const paymentRequired = (message: string) => new HttpError(402, 'no_credits', message)
+/** Превышен лимит: частота запусков, одновременные задания или бюджет. */
+export const tooManyRequests = (message: string) => new HttpError(429, 'rate_limited', message)

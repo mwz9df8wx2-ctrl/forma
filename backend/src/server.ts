@@ -11,6 +11,9 @@ import { registerProjectRoutes } from './routes/projects.ts'
 import { registerFileRoutes } from './routes/files.ts'
 import { registerCatalogRoutes } from './routes/catalog.ts'
 import { registerAiRoutes } from './routes/ai.ts'
+import { registerGenerationRoutes } from './routes/generations.ts'
+import { ensurePlans } from './services/plans.ts'
+import { recoverJobs, startWorker } from './services/jobs.ts'
 
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
@@ -31,6 +34,7 @@ registerProjectRoutes(router)
 registerFileRoutes(router)
 registerCatalogRoutes(router)
 registerAiRoutes(router)
+registerGenerationRoutes(router)
 
 export function createApp() {
   return createServer(async (req, res) => {
@@ -77,12 +81,18 @@ if (import.meta.filename === process.argv[1]) {
   applySchema()
   // Разогреваем подключение, чтобы ошибки схемы всплыли при старте.
   db().prepare('SELECT 1').get()
+  ensurePlans()
+  // Задания, прерванные падением сервера, закрываем с возвратом кредитов:
+  // доигрывать их нельзя, неизвестно, что успел сделать провайдер.
+  const recovered = recoverJobs()
+  startWorker()
 
   createApp().listen(env.port, () => {
     console.log('')
     console.log(`  Сервер ФОРМА запущен на http://localhost:${env.port}`)
     console.log(`  База: ${resolve(env.databaseFile)}`)
     console.log(`  Файлы: ${resolve(env.storageDir)}`)
+    if (recovered > 0) console.log(`  Прерванных заданий закрыто: ${recovered}`)
     for (const warning of warnings) console.log(`  ⚠ ${warning}`)
     console.log('')
   })

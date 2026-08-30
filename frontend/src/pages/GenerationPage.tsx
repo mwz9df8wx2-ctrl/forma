@@ -6,10 +6,12 @@ import { GenerationProgress } from '@/components/generation/GenerationProgress'
 import { Button } from '@/components/ui/Button'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useProject } from '@/hooks/useProject'
+import { useBilling } from '@/hooks/useBilling'
 
 export function GenerationPage() {
   const navigate = useNavigate()
   const { photo } = useProject()
+  const { serverGeneration } = useBilling()
   const { generation, stages, stageIndex, progress, isCompleted, isFailed, startGeneration, cancelGeneration } =
     useGeneration()
 
@@ -47,6 +49,10 @@ export function GenerationPage() {
             <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">
               {generation.error?.message ?? 'Попробуйте ещё раз — параметры сохранены.'}
             </p>
+            {serverGeneration && (
+              // Возврат кредитов делает сервер при любом сбое задания.
+              <p className="mt-2 text-[0.875rem] text-success">AI-кредиты возвращены.</p>
+            )}
             <div className="mt-7 flex flex-col gap-2.5 sm:flex-row-reverse">
               <Button
                 variant="primary"

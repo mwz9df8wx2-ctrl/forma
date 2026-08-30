@@ -7,6 +7,9 @@ import {
   uploadProjectPhoto,
 } from '@/api'
 import { saveSpec } from '@/api/server/projects'
+import { enqueueGeneration, watchJob, type JobWatcher } from '@/api/server/billing'
+import { jobToGeneration, loadJobResults, releaseResults } from '@/lib/serverGeneration'
+import { useBilling } from '@/hooks/useBilling'
 import { paramsToSpec } from '@/lib/specMapping'
 import { useToast } from '@/hooks/useToast'
 import { nearestByHex } from '@/lib/color'
@@ -32,6 +35,7 @@ function defaultTitle(): string {
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { catalog } = useCatalog()
   const { showError, show } = useToast()
+  const { serverGeneration, refresh: refreshWallet } = useBilling()
 
   const [project, setProject] = useState<Project | null>(null)
   const [photo, setPhoto] = useState<ProjectPhoto | null>(null)
@@ -56,8 +60,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   const subscription = useRef<GenerationSubscription | null>(null)
+  const serverWatcher = useRef<JobWatcher | null>(null)
+  // Защита от двойного нажатия: состояние обновится позже, ссылка — сразу.
+  const starting = useRef(false)
 
-  useEffect(() => () => subscription.current?.close(), [])
+  const stopWatching = useCallback(() => {
+    subscription.current?.close()
+    subscription.current = null
+    serverWatcher.current?.close()
+    serverWatcher.current = null
+  }, [])
+
+  useEffect(() => () => stopWatching(), [stopWatching])
 
   const confirmPhoto = useCallback(
     async (nextPhoto: ProjectPhoto) => {
@@ -111,13 +125,94 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   )
 
   const cancelGeneration = useCallback(() => {
-    subscription.current?.close()
-    subscription.current = null
-    setGeneration(null)
-  }, [])
+    stopWatching()
+    setGeneration((previous) => {
+      if (previous) releaseResults(previous.results)
+      return null
+    })
+  }, [stopWatching])
+
+  /**
+   * Запуск на сервере.
+   *
+   * Сервер резервирует кредиты, ставит задание в очередь и отдаёт его
+   * идентификатор. Экран следит за настоящими стадиями задания: пока сервер
+   * не сообщил о переходе, полоса не двигается.
+   */
+  const runServerJob = useCallback(
+    async (projectId: string) => {
+      stopWatching()
+      try {
+        const { job, reused } = await enqueueGeneration({
+          projectId,
+          quality: 'preview',
+          variants: 3,
+          seed: currentSeed(),
+          // Ключ идемпотентности: повтор того же запроса не создаёт второе
+          // платное задание, даже если браузер отправил его дважды.
+          idempotencyKey: crypto.randomUUID(),
+        })
+        setGeneration(jobToGeneration(job))
+        void refreshWallet()
+        if (reused) {
+          show({ title: 'Расчёт уже запущен', variant: 'info' })
+        }
+
+        serverWatcher.current = watchJob(
+          job.id,
+          (fresh) => {
+            if (fresh.status === 'completed') {
+              void loadJobResults(fresh).then((results) => {
+                setGeneration(jobToGeneration(fresh, results))
+                void refreshWallet()
+                const preview = results[0]?.thumbnailUrl ?? null
+                setProject((previous) =>
+                  previous
+                    ? {
+                        ...previous,
+                        previewUrl: preview,
+                        summary: catalog ? buildSummary(catalog, params) : previous.summary,
+                        generationsCount: previous.generationsCount + 1,
+                        updatedAt: new Date().toISOString(),
+                      }
+                    : previous,
+                )
+              })
+              return
+            }
+
+            setGeneration(jobToGeneration(fresh))
+            if (fresh.status === 'failed') {
+              void refreshWallet()
+              // Возврат кредитов сообщаем прямо: иначе пользователь считает,
+              // что заплатил за неудачу.
+              show({
+                title: fresh.errorMessage ?? 'Не удалось создать визуализацию.',
+                description: 'AI-кредиты возвращены.',
+                variant: 'error',
+              })
+            }
+          },
+          (error) => {
+            showError(error)
+          },
+        )
+        return true
+      } catch (error) {
+        showError(error)
+        setGeneration(null)
+        return false
+      }
+    },
+    [stopWatching, refreshWallet, show, showError, catalog, params],
+  )
 
   const startGeneration = useCallback(async (options?: { newSeed?: boolean }) => {
     if (missingParams(params).length > 0) return false
+    // Двойное нажатие не должно ставить два задания: состояние обновится
+    // позже, а ссылка — прямо сейчас.
+    if (starting.current) return false
+    starting.current = true
     if (options?.newSeed) seed.current = nextSeed()
 
     // Спецификация уходит на сервер до расчёта: источник правды там, а не в
@@ -135,12 +230,21 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         showError(error)
+        starting.current = false
         return false
       }
     }
 
-    subscription.current?.close()
-    subscription.current = null
+    // Настоящая генерация живёт на сервере: там кредиты, лимиты и очередь.
+    // Без подключённого провайдера считаем на устройстве — так результат
+    // лучше, чем заглушка, и деньги не тратятся.
+    if (serverProject && serverGeneration) {
+      const started = await runServerJob(serverProject.id)
+      starting.current = false
+      return started
+    }
+
+    stopWatching()
 
     try {
       let current = project
@@ -207,27 +311,39 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       })
 
+      starting.current = false
       return true
     } catch (error) {
       showError(error)
       setGeneration(null)
+      starting.current = false
       return false
     }
-  }, [params, project, serverProject, title, photo, catalog, show, showError])
+  }, [
+    params,
+    project,
+    serverProject,
+    serverGeneration,
+    runServerJob,
+    stopWatching,
+    title,
+    photo,
+    catalog,
+    show,
+    showError,
+  ])
 
   const openProject = useCallback((next: Project) => {
-    subscription.current?.close()
-    subscription.current = null
+    stopWatching()
     setProject(next)
     setPhoto(next.photo)
     setParams(next.params)
     setTitle(next.title)
     setGeneration(null)
-  }, [])
+  }, [stopWatching])
 
   const resetProject = useCallback(() => {
-    subscription.current?.close()
-    subscription.current = null
+    stopWatching()
     setProject(null)
     setServerProject(null)
     setPhoto(null)
@@ -238,7 +354,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       dimensions: { ...DEFAULT_PARAMS.dimensions },
       options: { ...DEFAULT_PARAMS.options },
     })
-  }, [])
+  }, [stopWatching])
 
   const missing = useMemo(() => missingParams(params), [params])
 
