@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutGrid, Ruler, Sparkles, User } from 'lucide-react'
+import { LayoutGrid, Package, Ruler, Sparkles, User } from 'lucide-react'
 import { getGenerationSource } from '@/api'
+import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/cn'
 import { Logo } from './Logo'
 
@@ -28,16 +29,17 @@ const SIDEBAR_GROUPS: Array<{ title: string; items: Array<NavItem & { full: stri
     items: [{ to: '/drawings', label: 'Чертежи', full: 'Чертежи и спецификация', icon: Ruler }],
   },
   {
-    title: 'Кабинет',
+    title: 'Компания',
     items: [
-      { to: '/projects', label: 'Проекты', full: 'Мои проекты', icon: LayoutGrid },
+      { to: '/projects', label: 'Проекты', full: 'Проекты', icon: LayoutGrid },
+      { to: '/catalog', label: 'Каталог', full: 'Каталог материалов', icon: Package },
       { to: '/profile', label: 'Профиль', full: 'Профиль', icon: User },
     ],
   },
 ]
 
 /** Нижняя навигация видна только на основных разделах — сценарий съёмки её не показывает. */
-const TAB_ROUTES = new Set(['/', '/projects', '/profile'])
+const TAB_ROUTES = new Set(['/', '/projects', '/catalog', '/profile'])
 
 function BottomNav() {
   return (
@@ -121,19 +123,21 @@ function Sidebar() {
 
 /** Подсказка внизу боковой панели: чем сейчас создаются визуализации. */
 function SourceNote() {
+  const { session } = useSession()
   const source = getGenerationSource()
-  const title =
-    source === 'server'
-      ? 'Подключён рабочий сервер'
-      : source === 'ai'
-        ? 'Подключён сервис генерации'
-        : 'Автономный режим'
-  const text =
-    source === 'server'
-      ? 'Визуализации создаются на сервере.'
-      : source === 'ai'
-        ? 'Изображения создаёт подключённый сервис ИИ.'
-        : 'Визуализации считаются на этом устройстве, сервер не требуется.'
+
+  // Вход в компанию важнее способа расчёта картинки: он говорит, где живут
+  // проекты, каталог и ключи.
+  const title = session
+    ? 'Сервер компании подключён'
+    : source === 'ai'
+      ? 'Подключён сервис генерации'
+      : 'Автономный режим'
+  const text = session
+    ? 'Проекты, каталог и ключи хранятся на сервере. Визуализации считаются на устройстве.'
+    : source === 'ai'
+      ? 'Изображения создаёт подключённый сервис ИИ.'
+      : 'Проекты и визуализации хранятся на этом устройстве.'
 
   return (
     <div className="mt-auto rounded-xl border border-line bg-surface-2 p-3.5">

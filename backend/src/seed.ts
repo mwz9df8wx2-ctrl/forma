@@ -1,7 +1,7 @@
 import { applySchema, db } from './db/connection.ts'
 import { createId, nowIso } from './lib/ids.ts'
 import { hashPassword } from './lib/password.ts'
-import { emptySpec } from '../../shared/src/index.ts'
+import { defaultProductionProfile, emptySpec } from '../../shared/src/index.ts'
 
 /**
  * Демонстрационные данные для разработки.
@@ -70,8 +70,94 @@ db()
   )
   .run(revisionId, projectId, userId, JSON.stringify(spec), now)
 
+// Демонстрационный каталог: помечен DEMO, чтобы его не приняли за реальный.
+const catalogSeed: Array<{ type: string; name: string; attributes: Record<string, unknown> }> = [
+  {
+    type: 'facade',
+    name: 'DEMO · Эмаль жемчужная матовая',
+    attributes: {
+      brand: 'DEMO', collection: 'Базовая', material: 'enamel', colorName: 'Жемчужный',
+      colorHex: '#EAE4D8', finish: 'matte', thicknessMm: 19, handleless: true,
+    },
+  },
+  {
+    type: 'facade',
+    name: 'DEMO · Эмаль графит матовая',
+    attributes: {
+      brand: 'DEMO', collection: 'Базовая', material: 'enamel', colorName: 'Графит',
+      colorHex: '#4A4C50', finish: 'matte', thicknessMm: 19, handleless: true,
+    },
+  },
+  {
+    type: 'facade',
+    name: 'DEMO · Шпон дуб натуральный',
+    attributes: {
+      brand: 'DEMO', collection: 'Дерево', material: 'veneer', colorName: 'Натуральный дуб',
+      colorHex: '#C09A6B', finish: 'wood', thicknessMm: 19, handleless: false,
+    },
+  },
+  {
+    type: 'countertop',
+    name: 'DEMO · Кварц светлый камень',
+    attributes: {
+      brand: 'DEMO', collection: 'Кварц', material: 'quartz', decor: 'Светлый камень',
+      colorHex: '#DED8CC', actualThicknessMm: 20, visualThicknessMm: 38, edgeProfile: 'R3',
+    },
+  },
+  {
+    type: 'countertop',
+    name: 'DEMO · Камень мрамор белый',
+    attributes: {
+      brand: 'DEMO', collection: 'Камень', material: 'stone', decor: 'Мрамор',
+      colorHex: '#EAE7E1', actualThicknessMm: 20, visualThicknessMm: 50, edgeProfile: 'R3',
+    },
+  },
+  {
+    type: 'countertop',
+    name: 'DEMO · HPL графит',
+    attributes: {
+      brand: 'DEMO', collection: 'HPL', material: 'hpl', decor: 'Графит',
+      colorHex: '#4B4C4E', actualThicknessMm: 12, visualThicknessMm: 12, edgeProfile: 'R3',
+    },
+  },
+  {
+    type: 'carcass',
+    name: 'DEMO · ЛДСП белый 16 мм',
+    attributes: {
+      brand: 'DEMO', decor: 'Белый', material: 'chipboard', thicknessMm: 16,
+      backPanelThicknessMm: 4, visibleEdgeMm: 1, hiddenEdgeMm: 0.4,
+    },
+  },
+  {
+    type: 'carcass',
+    name: 'DEMO · ЛДСП серый 16 мм',
+    attributes: {
+      brand: 'DEMO', decor: 'Серый', material: 'chipboard', thicknessMm: 16,
+      backPanelThicknessMm: 4, visibleEdgeMm: 1, hiddenEdgeMm: 0.4,
+    },
+  },
+]
+
+for (const item of catalogSeed) {
+  db()
+    .prepare(
+      `INSERT INTO catalog_items
+         (id, company_id, type, sku, name, attributes, active, demo, created_at, updated_at)
+       VALUES (?, ?, ?, '', ?, ?, 1, 1, ?, ?)`,
+    )
+    .run(createId('cat'), companyId, item.type, item.name, JSON.stringify(item.attributes), now, now)
+}
+
+db()
+  .prepare(
+    `INSERT INTO production_profiles (id, company_id, name, settings, is_default, created_at)
+     VALUES (?, ?, 'Основной', ?, 1, ?)`,
+  )
+  .run(createId('prf'), companyId, JSON.stringify(defaultProductionProfile()), now)
+
 console.log('')
 console.log('  Демо-данные созданы.')
+console.log(`  Каталог: ${catalogSeed.length} записей с пометкой DEMO`)
 console.log(`  Почта:  ${email}`)
 console.log('  Пароль: demo12345')
 console.log('')

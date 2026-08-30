@@ -347,3 +347,162 @@ describe('Ключи провайдеров', () => {
     assert.equal(typeof response.body.generationEnabled, 'boolean')
   })
 })
+
+describe('Каталог компании', () => {
+  let tokenA = ''
+  let tokenB = ''
+  let itemId = ''
+
+  before(async () => {
+    const a = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'a@test.ru', password: 'parol12345' },
+    })
+    tokenA = a.body.token
+    const b = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'b@test.ru', password: 'parol12345' },
+    })
+    tokenB = b.body.token
+  })
+
+  it('создаёт фасад с проверкой атрибутов', async () => {
+    const response = await api('/api/v1/catalog', {
+      method: 'POST',
+      token: tokenA,
+      body: {
+        type: 'facade',
+        name: 'Эмаль жемчужная',
+        salePrice: 4200,
+        attributes: {
+          brand: 'Свой цех',
+          collection: 'Базовая',
+          material: 'enamel',
+          colorName: 'Жемчужный',
+          colorHex: '#EAE4D8',
+          finish: 'matte',
+          thicknessMm: 19,
+          handleless: true,
+        },
+      },
+    })
+    assert.equal(response.status, 201)
+    itemId = response.body.item.id
+    assert.equal(response.body.item.attributes.colorName, 'Жемчужный')
+    assert.equal(response.body.item.demo, false)
+  })
+
+  it('отклоняет неверный цвет', async () => {
+    const response = await api('/api/v1/catalog', {
+      method: 'POST',
+      token: tokenA,
+      body: {
+        type: 'facade',
+        name: 'Плохой цвет',
+        attributes: {
+          material: 'enamel',
+          colorName: 'Что-то',
+          colorHex: 'зелёный',
+          finish: 'matte',
+        },
+      },
+    })
+    assert.equal(response.status, 400)
+  })
+
+  it('отклоняет атрибуты чужого типа', async () => {
+    const response = await api('/api/v1/catalog', {
+      method: 'POST',
+      token: tokenA,
+      body: {
+        type: 'countertop',
+        name: 'Столешница с полями фасада',
+        attributes: { material: 'enamel', colorName: 'Жемчужный', colorHex: '#EAE4D8', finish: 'matte' },
+      },
+    })
+    assert.equal(response.status, 400)
+  })
+
+  it('чужой каталог не виден', async () => {
+    const response = await api('/api/v1/catalog?type=facade', { token: tokenB })
+    const ids = response.body.items.map((item: { id: string }) => item.id)
+    assert.ok(!ids.includes(itemId))
+  })
+
+  it('чужую запись нельзя изменить', async () => {
+    const response = await api(`/api/v1/catalog/${itemId}`, {
+      method: 'PATCH',
+      token: tokenB,
+      body: { name: 'Взлом' },
+    })
+    assert.equal(response.status, 404)
+  })
+
+  it('запись выключается, а не удаляется', async () => {
+    const disable = await api(`/api/v1/catalog/${itemId}`, { method: 'DELETE', token: tokenA })
+    assert.equal(disable.status, 200)
+
+    const active = await api('/api/v1/catalog?type=facade', { token: tokenA })
+    assert.ok(!active.body.items.some((item: { id: string }) => item.id === itemId))
+
+    const all = await api('/api/v1/catalog?type=facade&inactive=true', { token: tokenA })
+    const found = all.body.items.find((item: { id: string }) => item.id === itemId)
+    assert.ok(found, 'запись должна остаться в базе')
+    assert.equal(found.active, false)
+  })
+})
+
+describe('Производственный профиль', () => {
+  let token = ''
+  before(async () => {
+    const auth = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'a@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+  })
+
+  it('отдаёт значения по умолчанию, пока профиль не сохранён', async () => {
+    const response = await api('/api/v1/production-profile', { token })
+    assert.equal(response.status, 200)
+    assert.equal(response.body.profile.carcassThicknessMm, 16)
+    assert.equal(response.body.profile.facadeGapMm, 2)
+    assert.equal(response.body.isDefault, true)
+  })
+
+  it('сохраняет и возвращает изменённый профиль', async () => {
+    const saved = await api('/api/v1/production-profile', {
+      method: 'PATCH',
+      token,
+      body: {
+        carcassThicknessMm: 18,
+        facadeThicknessMm: 19,
+        backPanelThicknessMm: 4,
+        facadeGapMm: 3,
+        plinthHeightMm: 120,
+        baseDepthMm: 560,
+        upperDepthMm: 320,
+        worktopDepthMm: 600,
+        worktopHeightMm: 910,
+        visibleEdgeMm: 2,
+        hiddenEdgeMm: 0.4,
+        defaultHardwareBrand: 'Blum',
+      },
+    })
+    assert.equal(saved.status, 200)
+
+    const response = await api('/api/v1/production-profile', { token })
+    assert.equal(response.body.profile.carcassThicknessMm, 18)
+    assert.equal(response.body.profile.worktopHeightMm, 910)
+    assert.equal(response.body.isDefault, false)
+  })
+
+  it('отклоняет недопустимую толщину', async () => {
+    const response = await api('/api/v1/production-profile', {
+      method: 'PATCH',
+      token,
+      body: { carcassThicknessMm: 500 },
+    })
+    assert.equal(response.status, 400)
+  })
+})

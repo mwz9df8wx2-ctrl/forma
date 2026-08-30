@@ -9,6 +9,7 @@ import { Router, applyCors, sendError, sendJson, type RequestContext } from './l
 import { authenticate, registerAuthRoutes } from './routes/auth.ts'
 import { registerProjectRoutes } from './routes/projects.ts'
 import { registerFileRoutes } from './routes/files.ts'
+import { registerCatalogRoutes } from './routes/catalog.ts'
 import { registerAiRoutes } from './routes/ai.ts'
 
 const ALLOWED_ORIGINS = [
@@ -28,6 +29,7 @@ router.get('/api/v1/health', () => ({
 registerAuthRoutes(router)
 registerProjectRoutes(router)
 registerFileRoutes(router)
+registerCatalogRoutes(router)
 registerAiRoutes(router)
 
 export function createApp() {

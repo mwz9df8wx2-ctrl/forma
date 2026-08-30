@@ -118,3 +118,22 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS audit_company ON audit_log(company_id, created_at DESC);
+
+-- Каталог компании: фасады, столешницы, корпуса, фурнитура, техника, свет.
+-- Атрибуты хранятся как JSON: набор полей зависит от типа записи и
+-- проверяется схемой в общем пакете.
+CREATE TABLE IF NOT EXISTS catalog_items (
+  id              TEXT PRIMARY KEY,
+  company_id      TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL,
+  sku             TEXT NOT NULL DEFAULT '',
+  name            TEXT NOT NULL,
+  attributes      TEXT NOT NULL,
+  purchase_price  REAL,
+  sale_price      REAL,
+  active          INTEGER NOT NULL DEFAULT 1,
+  demo            INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS catalog_company_type ON catalog_items(company_id, type, active);

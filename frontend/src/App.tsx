@@ -6,6 +6,7 @@ import { CatalogProvider } from '@/state/CatalogProvider'
 import { ProjectProvider } from '@/state/ProjectProvider'
 import { ToastProvider } from '@/state/ToastProvider'
 import { SessionProvider } from '@/state/SessionProvider'
+import { CatalogPage } from '@/pages/CatalogPage'
 import { DrawingsPage } from '@/pages/DrawingsPage'
 import { GenerationPage } from '@/pages/GenerationPage'
 import { HomePage } from '@/pages/HomePage'
@@ -56,6 +57,7 @@ export function App() {
                   <Route path="/generation" element={<GenerationPage />} />
                   <Route path="/results" element={<ResultsPage />} />
                   <Route path="/drawings" element={<DrawingsPage />} />
+                  <Route path="/catalog" element={<CatalogPage />} />
                   <Route path="/projects" element={<ProjectsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/login" element={<LoginPage />} />
