@@ -18,6 +18,8 @@ export interface GenerationStage {
 export interface GenerationRequestPayload {
   /** Что визуализируем: кухня, шкаф или тумба. */
   category: FurnitureCategory
+  /** Ракурс: auto — по одному на каждый вариант. */
+  view_angle: 'auto' | 'front' | 'left' | 'right'
   /** Планировка фронта: прямая или угловая. */
   layout_kind: 'straight' | 'corner'
   material_id: string

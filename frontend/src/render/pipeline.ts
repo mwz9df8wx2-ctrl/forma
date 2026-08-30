@@ -1,4 +1,5 @@
 import { analyzePhoto } from '../analysis/analyze.ts'
+import { eraseFurniture } from '../analysis/erase.ts'
 import { solveCamera, type CameraSolution } from '../analysis/camera.ts'
 import type { PhotoAnalysis } from '../analysis/types.ts'
 import {
@@ -47,6 +48,10 @@ export interface PipelineLog {
   analysisConfidence: number
   coverage: number
   exposureGain: number
+  /** Удалось ли снять со снимка прежнюю мебель перед вписыванием новой. */
+  erased: boolean
+  /** Какую долю кадра занимала прежняя мебель. */
+  erasedShare: number
   notes: string[]
 }
 
@@ -177,6 +182,8 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
         analysisConfidence: analysis.confidence,
         coverage: 1,
         exposureGain: 1,
+        erased: false,
+        erasedShare: 0,
         notes: camera.notes,
       },
     }
@@ -205,6 +212,11 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
     },
   }
 
+  // Прежнюю мебель убираем до вписывания новой: положенная поверх, она
+  // торчит по краям — прежние фасады, ручки и техника выдают подмену.
+  const plate = eraseFurniture(photo, photoWidth, photoHeight, analysis)
+  const base = plate.reliable ? plate.pixels : photo
+
   const scene = buildScene(input)
   scene.grain = 0.18
 
@@ -216,7 +228,7 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
   })
 
   // Подгонка яркости: кухня не должна выглядеть вклеенной из другого кадра.
-  const photoLuminance = measurePhotoLuminance(photo, result.alpha)
+  const photoLuminance = measurePhotoLuminance(base, result.alpha)
   const renderLuminance = measureRenderLuminance(result.color, result.alpha)
   const rawGain = renderLuminance > 0.001 ? photoLuminance / renderLuminance : 1
   const exposureGain = Math.min(1.7, Math.max(0.6, rawGain))
@@ -232,7 +244,7 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
 
   // Сначала убираем остатки прежней кухни в просветах, затем накладываем новую.
   const band = analysis.kitchenBand ?? { top: 0.12, bottom: 0.95 }
-  const repaired = repairUncoveredGaps(photo, result.alpha, photoWidth, photoHeight, band)
+  const repaired = repairUncoveredGaps(base, result.alpha, photoWidth, photoHeight, band)
   const pixels = compositeOverPhoto(repaired, developed, photoWidth, photoHeight)
   onProgress?.(1)
 
@@ -254,7 +266,11 @@ export function renderIntoPhoto(options: PipelineOptions): PipelineResult {
       analysisConfidence: analysis.confidence,
       coverage: coverage(result.alpha),
       exposureGain,
-      notes: camera.notes,
+      erased: plate.reliable,
+      erasedShare: plate.erasedShare,
+      notes: plate.reliable
+        ? camera.notes
+        : [...camera.notes, `прежняя мебель не снята: ${plate.reason ?? 'не удалось отделить'}`],
     },
   }
 }

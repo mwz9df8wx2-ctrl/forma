@@ -27,6 +27,7 @@ function payloadToParams(payload: GenerationRequestPayload): ProjectParams {
   return {
     // Категория приходит из проекта: по фотографии её не определить.
     category: payload.category ?? 'kitchen',
+    viewAngle: payload.view_angle ?? 'auto',
     layoutKind: payload.layout_kind ?? 'straight',
     dimensions: payload.dimensions,
     materialId: payload.material_id,

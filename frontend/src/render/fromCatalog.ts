@@ -69,6 +69,8 @@ export function sceneInputFromParams(
     // Корпусная мебель строится своей сценой; остальные категории рисуются
     // как кухня, пока для них не появилась собственная геометрия.
     category: isObjectCategory(params.category) ? params.category : ('kitchen' as const),
+    // auto оставляет выбор ракурса варианту: три результата — три взгляда.
+    viewAngle: params.viewAngle === 'auto' ? undefined : params.viewAngle,
     room: {
       width: roomWidth,
       height: roomHeight,

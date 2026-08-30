@@ -2,6 +2,7 @@ import { isWallMounted } from '../drawings/hardware.ts'
 import { buildObjectLayout, type ObjectCategory } from '../drawings/object.ts'
 import type { FurnitureLayout, FurnitureModule } from '../drawings/types.ts'
 import { clamp, createPalette, lightColor } from './palette.ts'
+import { buildViewpoint, viewAngleForVariant } from './viewpoint.ts'
 import type { AreaLight, RenderBox, SceneInput, SceneSpec } from './types.ts'
 
 /**
@@ -268,21 +269,21 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
   // --- Камера ---
   // Кадр строится по габариту изделия: у стенки и у шкафа разная высота,
   // и один фиксированный объектив обрезал бы то одно, то другое.
-  const centre = (leftmost + rightmost) * 0.5
-  const shift = variant === 1 ? 0.45 : variant === 2 ? -0.45 : 0
   const distance = Math.max(1.2, D - clamp(input.counter.depth, 0.3, 0.8) - 0.35)
   const needed = Math.max(1.6, highest + 0.7)
   const fov = clamp((2 * Math.atan(needed / 2 / distance) * 180) / Math.PI, 38, 72)
 
-  const camera = input.camera ?? {
-    position: [clamp(centre + shift, 0.5, W - 0.5), 1.5, 0.35] as [number, number, number],
-    target: [clamp(centre + shift * 0.35, 0.4, W - 0.4), Math.max(0.7, highest * 0.48), D] as [
-      number,
-      number,
-      number,
-    ],
-    fov: variant === 1 ? fov + 3 : fov,
-  }
+  const camera =
+    input.camera ??
+    buildViewpoint({
+      angle: viewAngleForVariant(variant, input.viewAngle),
+      roomWidth: W,
+      roomDepth: D,
+      eyeDepth: 0.35,
+      eyeHeight: 1.5,
+      targetHeight: Math.max(0.7, highest * 0.48),
+      fov,
+    })
 
   const ambientTone = lightColor(warm)
   const ambientLevel = (0.05 + brightness * 0.05) * (1 - input.light.contrast * 0.5)

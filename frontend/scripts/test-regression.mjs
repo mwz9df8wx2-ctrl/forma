@@ -49,7 +49,9 @@ const cases = [
   { name: 'с окном', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600] },
   { name: 'верхние шкафы', room: { width: 4.6, height: 2.9, depth: 4.9 }, dims: [4600, 2900, 900, 600] },
   { name: 'с вытяжкой', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600], want: { options: { appliances: true } } },
-  { name: 'открытые полки', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600], want: { options: { openShelves: true } }, variant: 1 },
+  // Снимок делаем фронтальным: угловой кадр вписыванию не подлежит, и это
+  // проверяется отдельным сценарием ниже.
+  { name: 'открытые полки', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600], want: { options: { openShelves: true } } },
   { name: 'тёмная', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600], existing: { light: { warmth: 0.6, brightness: 0.45, contrast: 0.6 } } },
   { name: 'светлая', room: { width: 4.2, height: 2.7, depth: 4.83 }, dims: [4200, 2700, 900, 600], existing: { light: { warmth: 0.35, brightness: 1.0, contrast: 0.2 } } },
   { name: 'плохой свет', room: { width: 3.6, height: 2.6, depth: 4.2 }, dims: [3600, 2600, 900, 600], existing: { light: { warmth: 0.95, brightness: 0.35, contrast: 0.85 } } },

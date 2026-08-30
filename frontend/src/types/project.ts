@@ -39,6 +39,10 @@ export type LayoutKind = 'straight' | 'corner'
 export interface ProjectParams {
   /** Что проектируем: от категории зависит раскладка и состав листов. */
   category: FurnitureCategory
+  /**
+   * Ракурс съёмки. auto — три варианта показывают изделие с трёх сторон.
+   */
+  viewAngle: 'auto' | 'front' | 'left' | 'right'
   layoutKind: LayoutKind
   dimensions: Dimensions
   materialId: string | null

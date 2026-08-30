@@ -18,6 +18,7 @@ import { PaletteSelector } from '@/components/selectors/PaletteSelector'
 import { isObjectCategory } from '@/drawings/object'
 import { CategorySelector } from '@/components/selectors/CategorySelector'
 import { ParameterSection } from '@/components/selectors/ParameterSection'
+import { ViewAngleSelector } from '@/components/selectors/ViewAngleSelector'
 import { StyleSelector } from '@/components/selectors/StyleSelector'
 import { TextureSelector } from '@/components/selectors/TextureSelector'
 import { GenerationButton, StickyActionBar } from '@/components/generation/GenerationButton'
@@ -223,6 +224,13 @@ export function ProjectPage() {
                     <CategorySelector
                       value={params.category}
                       onChange={(category) => updateParams({ category })}
+                    />
+                  </ParameterSection>
+
+                  <ParameterSection id="angle" eyebrow="Ракурс">
+                    <ViewAngleSelector
+                      value={params.viewAngle}
+                      onChange={(viewAngle) => updateParams({ viewAngle })}
                     />
                   </ParameterSection>
 

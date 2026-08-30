@@ -370,6 +370,155 @@ check(
 // Узкий стеллаж остаётся одной секцией, а не дробится ради симметрии.
 check('узкий стеллаж — одна секция', shelving(0.7).modules.filter((m) => m.kind === 'tall').length, 1)
 
+
+
+console.log('\n  Ракурсы\n')
+
+const { buildViewpoint, viewAngleForVariant, VIEW_ANGLES } = await import('../src/render/viewpoint.ts')
+
+check('три варианта — три разных ракурса', new Set([0, 1, 2].map((v) => viewAngleForVariant(v))).size, 3)
+check('заданный ракурс перебивает вариант', viewAngleForVariant(1, 'front'), 'front')
+
+const viewpoints = VIEW_ANGLES.map((angle) =>
+  buildViewpoint({
+    angle,
+    roomWidth: 3.2,
+    roomDepth: 3.6,
+    eyeDepth: 0.4,
+    eyeHeight: 1.58,
+    targetHeight: 1.2,
+    fov: 41,
+  }),
+)
+
+const [front, left, right] = viewpoints
+// Фронтальный вид: камера почти напротив цели. Строго осевым его не делаем —
+// по такому кадру не восстановить перспективу, сходящихся линий в нём нет.
+check('фронтальный ракурс смотрит почти прямо', Math.abs(front.position[0] - front.target[0]) < 0.25, true)
+// Три четверти: камера уходит вбок, а цель — в противоположную сторону.
+check('слева камера левее цели', left.position[0] < left.target[0] - 0.5, true)
+check('справа камера правее цели', right.position[0] > right.target[0] + 0.5, true)
+check('угловые ракурсы зеркальны', Math.abs(left.position[0] + right.position[0] - 3.2) < 0.01, true)
+check('фронтальный ракурс не угловой', Math.abs(front.position[0] - front.target[0]) < 0.3, true)
+// Камера остаётся внутри помещения: вплотную к стене объектив упирается в неё.
+check(
+  'камера не выходит за стены',
+  viewpoints.every((v) => v.position[0] > 0.3 && v.position[0] < 2.9),
+  true,
+)
+// Угловому виду нужен более широкий объектив: в кадр попадает больше стены.
+check('угловой ракурс шире фронтального', left.fov > front.fov, true)
+
+console.log('\n  Снятие прежней мебели со снимка\n')
+
+const { eraseFurniture } = await import('../src/analysis/erase.ts')
+
+/** Синтетический кадр: стена, пол и тёмная «старая кухня» посередине. */
+function room({ furniture = true, window: withWindow = false } = {}) {
+  const w = 160
+  const h = 120
+  const pixels = new Uint8ClampedArray(w * h * 4)
+  const floorFrom = Math.round(h * 0.72)
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const o = (y * w + x) * 4
+      const onFloor = y >= floorFrom
+      let r = onFloor ? 150 : 214
+      let g = onFloor ? 128 : 210
+      let b = onFloor ? 104 : 202
+      // Мебель: тёмная полоса посреди кадра. Ниже неё виден пол —
+      // так снимают кухню в жизни, стоя в паре шагов от неё.
+      if (furniture && y > h * 0.3 && y < h * 0.86 && x > w * 0.2 && x < w * 0.8) {
+        r = 62
+        g = 48
+        b = 40
+      }
+      if (withWindow && y > h * 0.12 && y < h * 0.34 && x > w * 0.05 && x < w * 0.18) {
+        r = 252
+        g = 252
+        b = 250
+      }
+      pixels[o] = r
+      pixels[o + 1] = g
+      pixels[o + 2] = b
+      pixels[o + 3] = 255
+    }
+  }
+  return { pixels, width: w, height: h, floorFrom }
+}
+
+const analysisStub = (windows = []) => ({
+  width: 160,
+  height: 120,
+  horizonY: 0.5,
+  vanishing: null,
+  fovHorizontal: 1.2,
+  floorLineY: 0.72,
+  ceilingLineY: 0.08,
+  counterLineY: 0.55,
+  wallSpan: null,
+  counterSpan: { left: 0.2, right: 0.8 },
+  windows,
+  light: { directionX: 0, warmth: 0.5, brightness: 0.5, contrast: 0.3 },
+  colors: { wall: '#d6d2ca', floor: '#968068', ceiling: '#e8e6e2' },
+  kitchenBand: { top: 0.16, bottom: 0.95 },
+  edgeTilt: 0,
+  suitability: { composable: true, reason: null },
+  confidence: 0.8,
+})
+
+const dirty = room()
+const cleaned = eraseFurniture(dirty.pixels, dirty.width, dirty.height, analysisStub())
+
+check('мебель распознана и снята', cleaned.reliable, true)
+check('снято заметную часть кадра', cleaned.erasedShare > 0.15, true)
+
+/** Средний цвет прямоугольника кадра. */
+function meanColor(pixels, w, x0, y0, x1, y1) {
+  let r = 0
+  let g = 0
+  let b = 0
+  let n = 0
+  for (let y = y0; y < y1; y += 1) {
+    for (let x = x0; x < x1; x += 1) {
+      const o = (y * w + x) * 4
+      r += pixels[o]
+      g += pixels[o + 1]
+      b += pixels[o + 2]
+      n += 1
+    }
+  }
+  return [r / n, g / n, b / n]
+}
+
+// На месте мебели должна остаться стена, а не тёмное пятно.
+const patch = meanColor(cleaned.pixels, dirty.width, 60, 50, 100, 70)
+check('на месте мебели стена, а не мебель', patch[0] > 170, true)
+
+// Ниже линии пола продолжается пол, а не стена.
+const floorPatch = meanColor(cleaned.pixels, dirty.width, 60, 100, 100, 115)
+check('под мебелью восстановлен пол', floorPatch[0] < 190 && floorPatch[0] > 120, true)
+
+// Настоящая стена и пол за пределами мебели не тронуты.
+const untouchedWall = meanColor(cleaned.pixels, dirty.width, 5, 40, 20, 60)
+check('чистая стена не тронута', Math.abs(untouchedWall[0] - 214) < 6, true)
+
+// Окно нельзя стирать: оно ярче стены и иначе попало бы под нож.
+const withWindow = room({ window: true })
+const keptWindow = eraseFurniture(
+  withWindow.pixels,
+  withWindow.width,
+  withWindow.height,
+  analysisStub([{ x0: 0.05, y0: 0.12, x1: 0.18, y1: 0.34, strength: 0.8 }]),
+)
+const windowPatch = meanColor(keptWindow.pixels, withWindow.width, 12, 20, 26, 38)
+check('окно осталось на месте', windowPatch[0] > 240, true)
+
+// Пустая комната: стирать нечего, и алгоритм не должен ничего испортить.
+const empty = room({ furniture: false })
+const emptyResult = eraseFurniture(empty.pixels, empty.width, empty.height, analysisStub())
+check('в пустой комнате нечего снимать', emptyResult.erasedShare < 0.02, true)
+
 console.log('\n  Сцена для трассировки\n')
 
 // Картинка и чертёж обязаны показывать одну кухню. Проверяем, что боковой
@@ -532,8 +681,8 @@ function sceneInputFor(category) {
   }
 }
 
-function furnitureScene(category) {
-  return buildScene(sceneInputFor(category))
+function furnitureScene(category, variant = 0) {
+  return buildScene({ ...sceneInputFor(category), variant })
 }
 
 const wardrobeScene = furnitureScene('wardrobe')
@@ -544,6 +693,10 @@ const bathScene = furnitureScene('bathroom')
 const shelvingScene = furnitureScene('shelving')
 
 check('сцена стеллажа знает свою категорию', shelvingScene.layout.category, 'shelving')
+
+// Варианты действительно снимаются с разных точек, а не сдвигаются на ладонь.
+const cameras = [0, 1, 2].map((variant) => furnitureScene('wardrobe', variant).camera.position[0])
+check('варианты сцены стоят в разных точках', new Set(cameras.map((v) => v.toFixed(2))).size, 3)
 // Перегородка между соседними секциями одна, а не две встык: иначе
 // на картинке она вдвое толще, чем в раскрое.
 const shelvingDividers = shelvingScene.boxes.filter(

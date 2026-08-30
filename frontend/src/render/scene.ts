@@ -1,6 +1,7 @@
 import type { AreaLight, RenderBox, SceneSpec, SceneInput } from './types.ts'
 import { clamp, createPalette, lightColor } from './palette.ts'
 import { buildObjectScene } from './objectScene.ts'
+import { buildViewpoint, viewAngleForVariant } from './viewpoint.ts'
 import { buildLayout } from '../drawings/layout.ts'
 import type { FurnitureLayout } from '../drawings/types.ts'
 
@@ -428,21 +429,20 @@ export function buildScene(input: SceneInput): SceneSpec {
   })
 
   // --- Камера ---
-  const cameraShift = variant === 1 ? 0.66 : variant === 2 ? -0.7 : -0.1
-  const targetShift = variant === 1 ? -0.5 : variant === 2 ? 0.52 : 0.05
-  const camera = input.camera ?? {
-    position: [clamp(W * 0.5 + cameraShift, 0.45, W - 0.45), 1.58, 0.4] as [
-      number,
-      number,
-      number,
-    ],
-    target: [clamp(W * 0.5 + targetShift, 0.4, W - 0.4), counterTop + 0.34, D] as [
-      number,
-      number,
-      number,
-    ],
-    fov: variant === 1 ? 44 : 41,
-  }
+  // Три варианта показывают кухню с трёх сторон: фронтально и в три четверти.
+  // Одна фронтальная картинка не отвечает на вопрос, как кухня встанет
+  // в комнату, — по ней не видно ни глубины, ни торцов.
+  const camera =
+    input.camera ??
+    buildViewpoint({
+      angle: viewAngleForVariant(variant, input.viewAngle),
+      roomWidth: W,
+      roomDepth: D,
+      eyeDepth: 0.4,
+      eyeHeight: 1.58,
+      targetHeight: counterTop + 0.34,
+      fov: 41,
+    })
 
   const ambientTone = lightColor(warm)
   const ambientLevel = (0.045 + brightness * 0.045) * (1 - input.light.contrast * 0.5)

@@ -13,6 +13,7 @@ export function missingParams(params: ProjectParams): string[] {
 export function buildGenerationPayload(params: ProjectParams): GenerationRequestPayload {
   return {
     category: params.category,
+    view_angle: params.viewAngle,
     layout_kind: params.layoutKind,
     material_id: params.materialId ?? '',
     color_id: params.colorId ?? '',

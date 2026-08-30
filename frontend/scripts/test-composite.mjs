@@ -61,6 +61,16 @@ console.timeEnd('вписывание')
 
 writeFileSync(resolve(root, 'composite-after.png'), encodePng(result.pixels, width, height))
 
+// Промежуточный кадр: комната без прежней мебели. По нему видно, что именно
+// сняли и чем закрасили — самая частая причина плохого композита.
+const { eraseFurniture } = await import('../src/analysis/erase.ts')
+const plate = eraseFurniture(photo, width, height, result.analysis)
+writeFileSync(resolve(root, 'composite-plate.png'), encodePng(plate.pixels, width, height))
+console.log(
+  `  снято прежней мебели: ${(plate.erasedShare * 100).toFixed(1)}% кадра` +
+    (plate.reliable ? '' : ` (ненадёжно: ${plate.reason})`),
+)
+
 // Диагностика: маска покрытия новой кухней.
 if (process.env.PIPELINE_DEBUG === '1' && result.alphaMask) {
   const mask = new Uint8ClampedArray(width * height * 4)

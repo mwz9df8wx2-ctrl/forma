@@ -80,6 +80,7 @@ function payloadToParams(payload: GenerationRequestPayload): ProjectParams {
   return {
     // Категория приходит из проекта: по фотографии её не определить.
     category: payload.category ?? 'kitchen',
+    viewAngle: payload.view_angle ?? 'auto',
     layoutKind: payload.layout_kind ?? 'straight',
     dimensions: payload.dimensions,
     materialId: payload.material_id,
@@ -374,6 +375,13 @@ export const mockBackend = {
 
             if (variantResult.log && !variantResult.log.composited && !note) {
               note = variantResult.log.reason
+            }
+            // Замена мебели на снимке — то, чего заказчик и ждал: сообщаем,
+            // сколько кадра пришлось освободить от прежней кухни.
+            if (variantResult.log?.composited && variantResult.log.erased && !note) {
+              note = `Прежняя мебель снята со снимка: ${Math.round(
+                variantResult.log.erasedShare * 100,
+              )}% кадра перерисовано.`
             }
             ratios[variant] = 1
             results[variant] = toResult(generationId, variant, variantResult)

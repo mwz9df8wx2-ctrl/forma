@@ -40,6 +40,8 @@ export function paramsToSpec(params: ProjectParams, base?: ProjectSpec): Project
 export function specToParams(spec: ProjectSpec, fallback: ProjectParams): ProjectParams {
   return {
     category: spec.category,
+    // Ракурс — настройка показа, а не спецификации: в проекте он не хранится.
+    viewAngle: fallback.viewAngle,
     layoutKind: spec.layoutKind,
     dimensions: {
       roomWidth: spec.dimensions.roomWidth || fallback.dimensions.roomWidth,

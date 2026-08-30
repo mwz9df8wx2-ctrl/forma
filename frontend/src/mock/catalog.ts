@@ -48,6 +48,7 @@ export const DEFAULT_OPTION_VALUES = Object.fromEntries(
  */
 export const DEFAULT_PARAMS: ProjectParams = {
   category: 'kitchen',
+  viewAngle: 'auto',
   layoutKind: 'corner',
   dimensions: { ...DEFAULT_DIMENSIONS },
   materialId: null,
