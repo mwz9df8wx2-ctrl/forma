@@ -53,6 +53,7 @@ const SETUP_TITLES: Record<string, string> = {
   living_room: 'Настройте будущую стенку',
   hallway: 'Настройте будущую прихожую',
   bathroom: 'Настройте мебель для ванной',
+  shelving: 'Настройте будущий стеллаж',
 }
 
 export function ProjectPage() {

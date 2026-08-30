@@ -72,7 +72,15 @@ export interface FurnitureModule {
 export interface FurnitureLayout {
   room: { width: number; height: number; depth: number }
   /** Категория объекта: от неё зависит состав листов техпакета. */
-  category: 'kitchen' | 'wardrobe' | 'cabinet' | 'tv_zone' | 'living_room' | 'hallway' | 'bathroom'
+  category:
+    | 'kitchen'
+    | 'wardrobe'
+    | 'cabinet'
+    | 'tv_zone'
+    | 'living_room'
+    | 'hallway'
+    | 'bathroom'
+    | 'shelving'
   /**
    * Есть ли столешница. У шкафа её нет, и лист «Схема столешниц» для него
    * не выпускается: пустой лист в цеху хуже отсутствующего.

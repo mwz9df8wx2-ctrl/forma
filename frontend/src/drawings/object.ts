@@ -1,6 +1,7 @@
 import { buildBathroomLayout } from './bathroom.ts'
 import { buildHallwayLayout } from './hallway.ts'
 import { buildLivingRoomLayout } from './livingRoom.ts'
+import { buildShelvingLayout } from './shelving.ts'
 import { buildWardrobeLayout } from './wardrobe.ts'
 import type { FurnitureLayout } from './types.ts'
 
@@ -19,6 +20,7 @@ export type ObjectCategory =
   | 'living_room'
   | 'hallway'
   | 'bathroom'
+  | 'shelving'
 
 const OBJECT_CATEGORIES: readonly string[] = [
   'wardrobe',
@@ -27,6 +29,7 @@ const OBJECT_CATEGORIES: readonly string[] = [
   'living_room',
   'hallway',
   'bathroom',
+  'shelving',
 ]
 
 export function isObjectCategory(category: string): category is ObjectCategory {
@@ -46,6 +49,20 @@ export function buildObjectLayout(input: ObjectLayoutInput): FurnitureLayout {
   const { width: roomWidth, height: roomHeight } = input.room
   const offset = 0.1
   const width = Math.max(0.8, roomWidth - offset * 2)
+
+  if (input.category === 'shelving') {
+    return buildShelvingLayout({
+      room: input.room,
+      width,
+      height: Math.min(2.4, roomHeight - 0.15),
+      depth: Math.min(input.depth, 0.4),
+      offset,
+      // Толщину полки берёт производственный профиль; 16 мм — самый ходовой лист.
+      shelfThicknessMm: 16,
+      closedBase: true,
+      facadeLabel: input.facadeLabel,
+    })
+  }
 
   if (input.category === 'hallway') {
     return buildHallwayLayout({

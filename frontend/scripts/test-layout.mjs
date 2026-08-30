@@ -290,6 +290,86 @@ const narrowBath = buildBathroomLayout({
 })
 check('на узкой стене пенала нет', narrowBath.modules.filter((m) => m.kind === 'tall').length, 0)
 
+
+console.log('\n  Стеллаж\n')
+
+const { buildShelvingLayout, maxShelfSpan } = await import('../src/drawings/shelving.ts')
+
+function shelving(width, thickness = 16) {
+  return buildShelvingLayout({
+    room: { width: width + 0.2, height: 2.7, depth: 3.6 },
+    width,
+    height: 2.3,
+    depth: 0.4,
+    offset: 0.1,
+    shelfThicknessMm: thickness,
+    closedBase: true,
+    facadeLabel: 'Эмаль жемчужная',
+  })
+}
+
+// Главный расчёт стеллажа — пролёт полки. ЛДСП 16 мм при пролёте больше
+// 800 мм провисает под книгами, и это претензия к цеху, а не к плите.
+check('предел пролёта для 16 мм', maxShelfSpan(16), 800)
+check('толще плита — длиннее пролёт', maxShelfSpan(22), 1000)
+check('незнакомая толщина считается как тонкая', maxShelfSpan(10), 800)
+
+const wide = shelving(2.4)
+const wideShelves = wide.modules.filter((m) => m.kind === 'shelf')
+check('категория стеллажа', wide.category, 'shelving')
+check(
+  'ни одна полка не длиннее допустимого пролёта',
+  wideShelves.every((shelf) => shelf.width <= maxShelfSpan(16)),
+  true,
+)
+check('широкий стеллаж делится на секции', wide.modules.filter((m) => m.kind === 'tall').length >= 3, true)
+
+// Толстая полка держит больший пролёт, поэтому на той же стене стоек меньше.
+const thin = shelving(3.2, 16)
+const thick = shelving(3.2, 25)
+check(
+  'толстая полка — меньше стоек',
+  thick.modules.filter((m) => m.kind === 'tall').length <
+    thin.modules.filter((m) => m.kind === 'tall').length,
+  true,
+)
+check(
+  'толстая полка не превышает свой предел',
+  thick.modules.filter((m) => m.kind === 'shelf').every((s) => s.width <= maxShelfSpan(25)),
+  true,
+)
+
+// Секции открыты: у стеллажа нет ни дверец, ни петель.
+const cells = wide.modules.filter((m) => m.kind === 'tall')
+check('секции стеллажа открыты', cells.every((m) => m.open === true && m.doors === 0), true)
+check(
+  'петли на стеллаж не считаются',
+  cells.every((m) => moduleHardware(m, { handles: true }).hinges === 0),
+  true,
+)
+
+// Закрытый низ — отдельные модули с фасадами.
+const closed = wide.modules.filter((m) => m.kind === 'base')
+check('закрытый низ есть под каждой секцией', closed.length, cells.length)
+check('у закрытого низа есть фасад', closed.every((m) => m.facade !== undefined), true)
+
+// Полки не выходят за габарит секции и не садятся на крышку.
+check(
+  'полки внутри своих секций',
+  wideShelves.every((shelf) =>
+    cells.some((cell) => shelf.x >= cell.x - 1 && shelf.x + shelf.width <= cell.x + cell.width + 1),
+  ),
+  true,
+)
+check(
+  'полки не упираются в крышку',
+  wideShelves.every((shelf) => shelf.y + shelf.height <= 2300 - 60),
+  true,
+)
+
+// Узкий стеллаж остаётся одной секцией, а не дробится ради симметрии.
+check('узкий стеллаж — одна секция', shelving(0.7).modules.filter((m) => m.kind === 'tall').length, 1)
+
 console.log('\n  Сцена для трассировки\n')
 
 // Картинка и чертёж обязаны показывать одну кухню. Проверяем, что боковой
@@ -461,6 +541,16 @@ const cabinetScene = furnitureScene('cabinet')
 const tvScene = furnitureScene('tv_zone')
 const wallScene = furnitureScene('living_room')
 const bathScene = furnitureScene('bathroom')
+const shelvingScene = furnitureScene('shelving')
+
+check('сцена стеллажа знает свою категорию', shelvingScene.layout.category, 'shelving')
+// Перегородка между соседними секциями одна, а не две встык: иначе
+// на картинке она вдвое толще, чем в раскрое.
+const shelvingDividers = shelvingScene.boxes.filter(
+  (box) => !box.inverted && box.max[0] - box.min[0] < 0.03 && box.max[1] - box.min[1] > 1,
+)
+const shelvingCells = shelvingScene.layout.modules.filter((m) => m.kind === 'tall').length
+check('перегородок на одну больше, чем секций', shelvingDividers.length, shelvingCells + 1)
 
 check('сцена ванной знает свою категорию', bathScene.layout.category, 'bathroom')
 // Цоколь под подвесной мебелью не рисуется: его там нет.

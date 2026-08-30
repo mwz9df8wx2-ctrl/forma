@@ -1,4 +1,13 @@
-import { Bath, ChefHat, DoorOpen, LayoutPanelTop, Monitor, Package, Shirt } from 'lucide-react'
+import {
+  Bath,
+  ChefHat,
+  DoorOpen,
+  LayoutPanelTop,
+  Library,
+  Monitor,
+  Package,
+  Shirt,
+} from 'lucide-react'
 import type { FurnitureCategory } from '@shared/index'
 import { cn } from '@/lib/cn'
 
@@ -36,6 +45,12 @@ const OPTIONS: Array<{
     name: 'Ванная',
     caption: 'Подвесная тумба под раковину и зеркальный шкаф',
     icon: Bath,
+  },
+  {
+    id: 'shelving',
+    name: 'Стеллаж',
+    caption: 'Открытые секции с полками и закрытым низом',
+    icon: Library,
   },
 ]
 

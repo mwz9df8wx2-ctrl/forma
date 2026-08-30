@@ -100,6 +100,7 @@ export interface SceneInput {
     | 'living_room'
     | 'hallway'
     | 'bathroom'
+    | 'shelving'
   room: { width: number; height: number; depth: number }
   counter: { height: number; depth: number }
   /**

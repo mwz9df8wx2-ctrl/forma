@@ -86,6 +86,9 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
         : palette.facadeBase
   }
 
+  // Открытые секции, из которых потом собираются вертикальные перегородки.
+  const openCells: Array<{ x0: number; x1: number; y0: number; y1: number; front: number }> = []
+
   let lowestBody = Number.POSITIVE_INFINITY
   let highest = 0
   let leftmost = W
@@ -143,8 +146,47 @@ export function buildObjectScene(input: SceneInput): SceneSpec {
     addBox([x0, y0, D - PANEL], [x1, y1, D], palette.carcass)
     addBox([x0, y0, front], [x1, y0 + PANEL, D], palette.carcass)
     addBox([x0, y1 - PANEL, front], [x1, y1, D], palette.carcass)
-    addBox([x0, y0, front], [x0 + PANEL, y1, D], palette.carcass)
-    addBox([x1 - PANEL, y0, front], [x1, y1, D], palette.carcass)
+    openCells.push({ x0, x1, y0, y1, front })
+  }
+
+  /**
+   * Вертикальные перегородки. Между соседними ячейками стойка одна, а не две
+   * встык: иначе на картинке она вдвое толще, чем в раскрое. Раскладки при
+   * этом разные — у стеллажа между ячейками оставлен зазор под стойку,
+   * у шкафа секции идут вплотную, — поэтому обе разбираются здесь.
+   */
+  openCells.sort((a, b) => a.x0 - b.x0)
+  for (const [index, cell] of openCells.entries()) {
+    const previous = openCells[index - 1]
+    const adjacent =
+      previous !== undefined &&
+      cell.x0 - previous.x1 <= 0.04 &&
+      Math.min(previous.y1, cell.y1) - Math.max(previous.y0, cell.y0) > 0.2
+
+    const left = adjacent
+      ? // Зазор между ячейками — это и есть стойка. Если зазора нет,
+        // ячейки идут вплотную, и стойка встаёт по их общей границе.
+        cell.x0 - previous.x1 > 0.001
+        ? { from: previous.x1, to: cell.x0 }
+        : { from: cell.x0 - PANEL / 2, to: cell.x0 + PANEL / 2 }
+      : { from: cell.x0 - PANEL, to: cell.x0 }
+
+    const y0 = adjacent ? Math.min(previous.y0, cell.y0) : cell.y0
+    const y1 = adjacent ? Math.max(previous.y1, cell.y1) : cell.y1
+    const front = adjacent ? Math.min(previous.front, cell.front) : cell.front
+
+    addBox([left.from, y0, front], [left.to, y1, D], palette.carcass)
+
+    // Правая боковина рисуется только у последней ячейки ряда: у остальных
+    // её роль играет стойка следующей.
+    const next = openCells[index + 1]
+    const continues =
+      next !== undefined &&
+      next.x0 - cell.x1 <= 0.04 &&
+      Math.min(next.y1, cell.y1) - Math.max(next.y0, cell.y0) > 0.2
+    if (!continues) {
+      addBox([cell.x1, cell.y0, cell.front], [cell.x1 + PANEL, cell.y1, D], palette.carcass)
+    }
   }
 
   // Цоколь под напольными модулями.
