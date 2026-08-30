@@ -1,4 +1,4 @@
-import type { KitchenLayout, KitchenModule } from './types.ts'
+import type { FurnitureLayout, FurnitureModule } from './types.ts'
 
 /**
  * Расчёт фурнитуры и крепежа.
@@ -75,16 +75,19 @@ export function slideLengthForDepth(depth: number): number {
 }
 
 /** Признак ящика: у нижних модулей высотой меньше 300 фасад ящичный. */
-function isDrawerModule(module: KitchenModule): boolean {
+function isDrawerModule(module: FurnitureModule): boolean {
   return module.kind === 'base' && module.label.toLowerCase().includes('ящик')
 }
 
 export function moduleHardware(
-  module: KitchenModule,
+  module: FurnitureModule,
   options: { handles: boolean; corner?: boolean },
 ): ModuleHardware {
   const rules = HARDWARE_RULES
-  const corner = options.corner === true || module.label.toLowerCase().includes('углов')
+  // Признак угла берём из модуля; проверка по названию осталась для сцен,
+  // собранных до появления поля.
+  const corner =
+    options.corner === true || module.corner === true || module.label.toLowerCase().includes('углов')
 
   if (module.kind === 'appliance' || module.kind === 'shelf') {
     return {
@@ -119,9 +122,16 @@ export function moduleHardware(
     slides,
     slideLength: slides > 0 ? slideLengthForDepth(module.depth) : null,
     handles: options.handles ? module.doors : 0,
-    legs: module.kind === 'base' || module.kind === 'island' ? rules.legsPerBaseModule : 0,
+    // Внутренний блок опирается на чужие боковины: ни ножек, ни цоколя.
+    legs:
+      !module.internal && (module.kind === 'base' || module.kind === 'island')
+        ? rules.legsPerBaseModule
+        : 0,
     bracketSets: module.kind === 'upper' ? rules.bracketSetsPerUpper : 0,
-    clips: module.kind === 'base' || module.kind === 'island' ? rules.clipsPerBaseModule : 0,
+    clips:
+      !module.internal && (module.kind === 'base' || module.kind === 'island')
+        ? rules.clipsPerBaseModule
+        : 0,
     screws16: rules.screws16PerModule,
     screws30: rules.screws30PerModule,
   }
@@ -138,7 +148,7 @@ export interface HardwareLine {
 
 /** Ведомость крепежа и фурнитуры на весь проект. */
 export function hardwareTotals(
-  layout: KitchenLayout,
+  layout: FurnitureLayout,
   options: { handles: boolean; worktopJoints: number },
 ): HardwareLine[] {
   const rules = HARDWARE_RULES
@@ -168,7 +178,7 @@ export function hardwareTotals(
     screws16 += hardware.screws16
     screws30 += hardware.screws30
     if (hardware.slideLength) slideLengths.add(hardware.slideLength)
-    if (module.kind === 'base') baseRows = 1
+    if (module.kind === 'base' && !module.internal) baseRows = 1
   }
   legs += baseRows * rules.legsPerRow
 
@@ -215,7 +225,7 @@ export function hardwareTotals(
 
 /** Размер фасада по проёму: детерминированное правило зазоров. */
 export function facadeSize(
-  module: KitchenModule,
+  module: FurnitureModule,
 ): { width: number; height: number; count: number } {
   const gap = HARDWARE_RULES.facadeGap
   const count = Math.max(1, module.doors)

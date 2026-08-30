@@ -1,6 +1,6 @@
 import type { EstimateRequestLine } from '@shared/index'
 import type { HardwareLine } from './hardware'
-import type { KitchenLayout, KitchenModule } from './types'
+import type { FurnitureLayout, FurnitureModule } from './types'
 import type { WorktopPlan } from './worktop'
 
 /**
@@ -19,7 +19,7 @@ function milli(value: number): number {
 }
 
 /** Площадь деталей корпуса одного модуля, м². */
-function carcassArea(module: KitchenModule, backPanel: boolean): number {
+function carcassArea(module: FurnitureModule, backPanel: boolean): number {
   const { width, height, depth } = module
   // Две боковины, дно и крыша. Задняя стенка считается отдельным материалом,
   // но по площади идёт в тот же лист.
@@ -30,7 +30,7 @@ function carcassArea(module: KitchenModule, backPanel: boolean): number {
 }
 
 export interface BomInput {
-  layout: KitchenLayout
+  layout: FurnitureLayout
   worktop: WorktopPlan
   hardware: HardwareLine[]
   /** Записи каталога, выбранные в проекте. Без них строка идёт без цены. */

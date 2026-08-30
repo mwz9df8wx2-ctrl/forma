@@ -212,9 +212,12 @@ export function PackagePage() {
 
           <MeasurementNotice className="mt-5 print-hide" />
 
-          <Sheet title="Развёртка" svg={drawings.elevation} />
+          <Sheet title="Развёртка по основной стене" svg={drawings.elevation} />
+          {drawings.elevationSide && (
+            <Sheet title="Развёртка по боковой стене" svg={drawings.elevationSide} />
+          )}
           <Sheet title="План" svg={drawings.plan} />
-          <Sheet title="Столешница" svg={drawings.worktop} />
+          {drawings.worktop && <Sheet title="Столешница" svg={drawings.worktop} />}
 
           <section className="print-sheet print-break-before mt-6 rounded-2xl border border-line bg-surface p-5 print-plain">
             <h2 className="text-[1.0625rem] font-semibold text-ink">Спецификация модулей</h2>
@@ -223,6 +226,7 @@ export function PackagePage() {
                 <thead>
                   <tr className="border-b border-line text-left text-muted">
                     <th className="py-2 pr-3 font-medium">Модуль</th>
+                    <th className="py-2 pr-3 font-medium">Стена</th>
                     <th className="py-2 pr-3 font-medium">Габарит</th>
                     <th className="py-2 pr-3 font-medium">Глубина</th>
                     <th className="py-2 pr-3 font-medium">Фасады</th>
@@ -233,6 +237,7 @@ export function PackagePage() {
                   {drawings.schedule.map((row) => (
                     <tr key={row.id} className="border-b border-line last:border-b-0">
                       <td className="py-2 pr-3 font-medium text-ink">{row.label}</td>
+                      <td className="py-2 pr-3 text-muted">{row.wall}</td>
                       <td className="py-2 pr-3 tabular-nums text-muted">{row.size}</td>
                       <td className="py-2 pr-3 tabular-nums text-muted">{row.depth}</td>
                       <td className="py-2 pr-3 text-muted">{row.doors}</td>

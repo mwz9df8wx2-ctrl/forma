@@ -1,6 +1,6 @@
 import { HARDWARE_RULES } from './hardware.ts'
 import { INK, THIN, dimensionH, dimensionV, line, rect, svgDocument, text } from './svg.ts'
-import type { KitchenLayout } from './types.ts'
+import type { FurnitureLayout } from './types.ts'
 
 /**
  * Схема столешниц: детали в плане, вырезы, стык и стяжки.
@@ -47,7 +47,22 @@ export interface WorktopPlan {
 const HOB_CUTOUT = { width: 560, depth: 490 }
 const SINK_CUTOUT = { width: 480, depth: 430 }
 
-export function buildWorktopPlan(layout: KitchenLayout): WorktopPlan {
+export function buildWorktopPlan(layout: FurnitureLayout): WorktopPlan {
+  // У шкафа столешницы нет. Пустой лист в цеху хуже отсутствующего:
+  // по нему начинают искать, чего не хватает.
+  if (!layout.hasWorktop) {
+    return {
+      parts: [],
+      joints: 0,
+      boltsPerJoint: HARDWARE_RULES.worktopBoltsPerJoint,
+      boltSize: HARDWARE_RULES.worktopBoltSize,
+      wallGap: 0,
+      edgeFront: '',
+      edgeVisible: '',
+      notes: [],
+    }
+  }
+
   const thickness = layout.counter.thickness
   const depth = layout.counter.depth
   const length = layout.run.end - layout.run.start
@@ -77,18 +92,34 @@ export function buildWorktopPlan(layout: KitchenLayout): WorktopPlan {
     })
   }
 
+  const parts: WorktopPart[] = [
+    {
+      id: 'C1',
+      label: 'Деталь C1 — основной фронт',
+      length,
+      depth,
+      thickness,
+      cutouts,
+    },
+  ]
+
+  // Боковой фронт — отдельная деталь. Цельная Г-образная столешница из
+  // одного листа получается только на заказ и стоит других денег, поэтому
+  // по умолчанию считаем стык под 90° со стяжками.
+  if (layout.sideRun) {
+    parts.push({
+      id: 'C2',
+      label: 'Деталь C2 — боковой фронт',
+      length: layout.sideRun.end - layout.sideRun.start,
+      depth,
+      thickness,
+      cutouts: [],
+    })
+  }
+
   return {
-    parts: [
-      {
-        id: 'C1',
-        label: 'Деталь C1 — основной фронт',
-        length,
-        depth,
-        thickness,
-        cutouts,
-      },
-    ],
-    joints: 0,
+    parts,
+    joints: layout.sideRun ? 1 : 0,
     boltsPerJoint: HARDWARE_RULES.worktopBoltsPerJoint,
     boltSize: HARDWARE_RULES.worktopBoltSize,
     wallGap: 8,
@@ -96,6 +127,9 @@ export function buildWorktopPlan(layout: KitchenLayout): WorktopPlan {
     edgeVisible: 'Видимые боковые края — кромка ПВХ 1 мм в цвет',
     notes: [
       'Размеры даны без учёта кривизны стен. Перед раскроем снять чистовые размеры по месту.',
+      ...(layout.sideRun
+        ? ['Стык C1 и C2 под 90° в углу. Запил по месту, стяжки снизу, шов проклеить.']
+        : []),
       'Пристеночный зазор 8 мм по всему периметру, заполняется герметиком.',
       'Вырезы под технику делать с учётом установочных зазоров из инструкции техники.',
       'Видимые торцы обработать кромкой в цвет столешницы.',
@@ -104,10 +138,12 @@ export function buildWorktopPlan(layout: KitchenLayout): WorktopPlan {
 }
 
 /** Лист «Схема столешниц»: детали в плане с вырезами и размерами. */
-export function renderWorktopSheet(plan: WorktopPlan, layout: KitchenLayout, title: string): string {
+export function renderWorktopSheet(plan: WorktopPlan, layout: FurnitureLayout, title: string): string {
   const margin = { left: 80, right: 40, top: 56, bottom: 40 }
   const drawWidth = 900
-  const longest = Math.max(...plan.parts.map((part) => part.length))
+  // Без деталей масштаб не определён: Math.max от пустого списка даёт -Infinity
+  // и лист получается пустым холстом с искажённой сеткой.
+  const longest = plan.parts.length > 0 ? Math.max(...plan.parts.map((part) => part.length)) : 1
   const scale = drawWidth / longest
   const parts: string[] = []
 

@@ -74,6 +74,9 @@ export function sceneInputFromParams(
       height: params.dimensions.counterHeight / 1000,
       depth: params.dimensions.counterDepth / 1000,
     },
+    // Боковой фронт участвует только в угловой планировке: у прямой кухни
+    // длина боковой стены может быть заполнена, но мебели там нет.
+    sideRun: params.layoutKind === 'corner' ? params.dimensions.sideRun / 1000 : 0,
     facade: {
       color: color.hex,
       pattern: PATTERNS[facadeGrain],

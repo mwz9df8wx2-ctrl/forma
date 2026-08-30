@@ -418,7 +418,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       results: generation?.results ?? [],
       missing,
       // Фотография необязательна: без неё сцена строится по размерам.
-      canGenerate: missing.length === 0,
+      // Визуализация пока умеет только кухню: показывать кухню там, где
+      // на чертеже шкаф, нельзя — это прямой обман заказчика.
+      canGenerate: missing.length === 0 && params.category === 'kitchen',
       serverProject,
       setServerProject,
       setTitle,

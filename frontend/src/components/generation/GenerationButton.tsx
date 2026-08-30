@@ -12,12 +12,15 @@ export function GenerationButton({
   disabled,
   loading,
   missing,
+  category = 'kitchen',
   className,
 }: {
   onClick: () => void
   disabled: boolean
   loading?: boolean
   missing: string[]
+  /** Визуализация пока построена только для кухни. */
+  category?: string
   className?: string
 }) {
   const { serverGeneration, wallet, costs } = useBilling()
@@ -27,13 +30,15 @@ export function GenerationButton({
   const noCredits = cost > 0 && wallet !== null && wallet.available < cost
 
   const hint =
-    missing.length > 0
-      ? `Выберите ${missing.slice(0, 2).join(' и ')}`
-      : noCredits
-        ? 'AI-кредиты закончились. Расчёты и чертежи продолжают работать.'
-        : cost > 0
-          ? `Спишется ${cost} ${plural(cost, ['AI-кредит', 'AI-кредита', 'AI-кредитов'])} · обычно меньше минуты`
-          : 'Обычно занимает меньше минуты'
+    category !== 'kitchen'
+      ? 'Визуализация пока делается только для кухни. Чертежи и смета работают для всех категорий.'
+      : missing.length > 0
+        ? `Выберите ${missing.slice(0, 2).join(' и ')}`
+        : noCredits
+          ? 'AI-кредиты закончились. Расчёты и чертежи продолжают работать.'
+          : cost > 0
+            ? `Спишется ${cost} ${plural(cost, ['AI-кредит', 'AI-кредита', 'AI-кредитов'])} · обычно меньше минуты`
+            : 'Обычно занимает меньше минуты'
 
   return (
     <div className={cn('w-full', className)}>
@@ -51,7 +56,7 @@ export function GenerationButton({
       <p
         className={cn(
           'mt-2 text-center text-xs',
-          missing.length > 0 || noCredits ? 'text-clay' : 'text-faint',
+          missing.length > 0 || noCredits || category !== 'kitchen' ? 'text-clay' : 'text-faint',
         )}
       >
         {hint}

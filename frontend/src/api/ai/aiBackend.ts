@@ -25,6 +25,9 @@ const contexts = new Map<string, { params: ProjectParams; photo: ProjectPhoto }>
 
 function payloadToParams(payload: GenerationRequestPayload): ProjectParams {
   return {
+    // Раскладку по фотографии строим только для кухни: другие категории
+    // задаются в проекте и не выводятся из снимка.
+    category: 'kitchen',
     layoutKind: payload.layout_kind ?? 'straight',
     dimensions: payload.dimensions,
     materialId: payload.material_id,

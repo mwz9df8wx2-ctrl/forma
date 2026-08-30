@@ -13,6 +13,7 @@ export function paramsToSpec(params: ProjectParams, base?: ProjectSpec): Project
   const spec = base ? { ...base } : emptySpec('kitchen')
   return {
     ...spec,
+    category: params.category,
     layoutKind: params.layoutKind,
     dimensions: {
       roomWidth: params.dimensions.roomWidth,
@@ -38,6 +39,7 @@ export function paramsToSpec(params: ProjectParams, base?: ProjectSpec): Project
 
 export function specToParams(spec: ProjectSpec, fallback: ProjectParams): ProjectParams {
   return {
+    category: spec.category,
     layoutKind: spec.layoutKind,
     dimensions: {
       roomWidth: spec.dimensions.roomWidth || fallback.dimensions.roomWidth,

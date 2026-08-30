@@ -1,11 +1,11 @@
 import { ACCENT, FILL, INK, THIN, dimensionH, dimensionV, line, rect, svgDocument, text } from './svg.ts'
-import type { KitchenLayout } from './types.ts'
+import type { FurnitureLayout } from './types.ts'
 
 /**
  * План помещения: вид сверху с расстановкой модулей и проходами.
  * По нему проверяют, что кухня встаёт в комнату и остаётся проход.
  */
-export function renderPlan(layout: KitchenLayout, title: string): string {
+export function renderPlan(layout: FurnitureLayout, title: string): string {
   const margin = { left: 92, right: 40, top: 54, bottom: 86 }
   const drawWidth = 860
   const scale = drawWidth / layout.room.width
@@ -42,13 +42,32 @@ export function renderPlan(layout: KitchenLayout, title: string): string {
     )
   }
 
-  // Нижний ряд вдоль стены.
-  const baseModules = layout.modules.filter((module) => module.kind === 'base').sort((a, b) => a.x - b.x)
+  // Нижний ряд вдоль основной стены.
+  const baseModules = layout.modules
+    .filter((module) => module.kind === 'base' && module.wall === 'main')
+    .sort((a, b) => a.x - b.x)
   for (const module of baseModules) {
     parts.push(rect(px(module.x), pz(0), module.width * scale, module.depth * scale, { fill: FILL }))
     if (module.width * scale > 30) {
       parts.push(
         text(px(module.x + module.width / 2), pz(module.depth / 2) + 4, module.id, { size: 10, weight: 600 }),
+      )
+    }
+  }
+
+  // Нижний ряд вдоль боковой стены: глубина откладывается вдоль ширины
+  // помещения, поэтому прямоугольник повёрнут.
+  const sideModules = layout.modules
+    .filter((module) => module.kind === 'base' && module.wall === 'side')
+    .sort((a, b) => a.x - b.x)
+  for (const module of sideModules) {
+    parts.push(rect(px(0), pz(module.x), module.depth * scale, module.width * scale, { fill: FILL }))
+    if (module.width * scale > 30) {
+      parts.push(
+        text(px(module.depth / 2), pz(module.x + module.width / 2) + 4, module.id, {
+          size: 10,
+          weight: 600,
+        }),
       )
     }
   }

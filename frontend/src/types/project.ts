@@ -1,3 +1,5 @@
+import type { FurnitureCategory } from '@shared/index'
+
 /** Подготовленная к отправке фотография помещения. */
 export interface ProjectPhoto {
   /** Сжатое изображение в виде data URL — используется и для превью, и для отправки. */
@@ -35,6 +37,8 @@ export type LayoutKind = 'straight' | 'corner'
 
 /** Полный набор выбранных параметров будущей кухни. */
 export interface ProjectParams {
+  /** Что проектируем: от категории зависит раскладка и состав листов. */
+  category: FurnitureCategory
   layoutKind: LayoutKind
   dimensions: Dimensions
   materialId: string | null

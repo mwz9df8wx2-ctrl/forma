@@ -3,6 +3,7 @@ import type { ProjectParams } from '../types/index.ts'
 
 function params(partial: Partial<ProjectParams>): ProjectParams {
   return {
+    category: 'kitchen',
     layoutKind: 'corner',
     dimensions: { ...DEFAULT_DIMENSIONS },
     materialId: 'mdf',

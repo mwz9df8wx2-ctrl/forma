@@ -1,11 +1,16 @@
 import type { AreaLight, PanelLayout, PatternKind, RenderBox, RenderMaterial, SceneSpec } from './types.ts'
 import { buildLayout } from '../drawings/layout.ts'
-import type { KitchenLayout } from '../drawings/types.ts'
+import type { FurnitureLayout } from '../drawings/types.ts'
 
 /** Исходные данные сцены — уже разрешённые значения, без справочников. */
 export interface SceneInput {
   room: { width: number; height: number; depth: number }
   counter: { height: number; depth: number }
+  /**
+   * Длина фронта вдоль боковой стены, м. 0 — прямая кухня.
+   * Отсчёт от задней стены, угол принадлежит основному фронту.
+   */
+  sideRun?: number
   facade: {
     color: string
     pattern: PatternKind
@@ -293,17 +298,33 @@ export function buildScene(input: SceneInput): SceneSpec {
   addRoomBox([-0.03, H, -0.03], [W + 0.03, H + 0.12, D + 0.03], ceilingMaterial)
 
   // --- Раскладка по вариантам ---
+  // Боковой фронт считаем первым: от него зависит, где начинается основной
+  // ряд и с какой стороны можно поставить пенал.
+  const sideLength = clamp(input.sideRun ?? 0, 0, D - 0.4)
+  // Короткая боковая стена не вмещает корпус: угол занимает глубину столешницы.
+  const hasSide = sideLength > Dc + 0.3
+  const sideFar = D - sideLength
+  const sideNear = D - Dc
+
   const tallWidth = 0.66
   let tallUnit: [number, number] | null = null
-  let runStart = 0.06
+  // В угловой кухне основной ряд доходит до боковой стены: зазор в углу
+  // означал бы обрезок столешницы, который никто не заказывает.
+  let runStart = hasSide ? 0 : 0.06
   let runEnd = W - 0.06
 
   if (variant === 0) {
     tallUnit = [W - 0.06 - tallWidth, W - 0.06]
     runEnd = tallUnit[0] - 0.02
   } else if (variant === 2) {
-    tallUnit = [0.06, 0.06 + tallWidth]
-    runStart = tallUnit[1] + 0.02
+    if (hasSide) {
+      // Пенал у боковой стены перекрыл бы угол — ставим его с другой стороны.
+      tallUnit = [W - 0.06 - tallWidth, W - 0.06]
+      runEnd = tallUnit[0] - 0.02
+    } else {
+      tallUnit = [0.06, 0.06 + tallWidth]
+      runStart = tallUnit[1] + 0.02
+    }
   }
 
   const runLength = runEnd - runStart
@@ -354,6 +375,18 @@ export function buildScene(input: SceneInput): SceneSpec {
     backsplashMaterial,
     windowRect,
   )
+
+  if (hasSide) {
+    addBox([0.05, 0, sideFar], [Dc - 0.075, 0.095, sideNear], toeMaterial)
+    addBox([0, 0.095, sideFar], [Dc, counterTop - 0.038, sideNear], facadeBase)
+    addBox(
+      [0, counterTop - 0.038, sideFar - 0.018],
+      [Dc + 0.022, counterTop, sideNear],
+      counterMaterial,
+    )
+    // Фартук боковой стены: свет от него отражается так же, как от основного.
+    addBox([0, counterTop, sideFar], [0.018, backsplashTop, sideNear], backsplashMaterial)
+  }
 
   // Верхний ярус.
   const upperRuns: Array<{ start: number; end: number; kind: 'upper' | 'shelf' }> = []
@@ -593,7 +626,7 @@ export function buildScene(input: SceneInput): SceneSpec {
   const ambientTone = lightColor(warm)
   const ambientLevel = (0.045 + brightness * 0.045) * (1 - input.light.contrast * 0.5)
 
-  const layout: KitchenLayout = buildLayout({
+  const layout: FurnitureLayout = buildLayout({
     room: { width: W, height: H, depth: D },
     counter: { height: Hc, depth: Dc },
     run: { start: runStart, end: runEnd },
@@ -604,6 +637,7 @@ export function buildScene(input: SceneInput): SceneSpec {
       ? { start: tallUnit[0], end: tallUnit[1], depth: Math.max(0.6, Dc), top: upperTop + 0.06 }
       : null,
     island: islandBounds,
+    sideRunLength: hasSide ? sideLength : 0,
     window: windowRect,
     appliances: input.options.appliances,
     hood: input.options.hood,

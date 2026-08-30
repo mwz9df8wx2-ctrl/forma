@@ -10,15 +10,23 @@ import { cn } from '@/lib/cn'
 import { useDrawings } from '@/hooks/useDrawings'
 import { useProject } from '@/hooks/useProject'
 
-type Sheet = 'elevation' | 'plan' | 'worktop' | 'schedule' | 'hardware'
+type Sheet = 'elevation' | 'elevationSide' | 'plan' | 'worktop' | 'schedule' | 'hardware'
 
 const TABS: Array<{ id: Sheet; label: string }> = [
   { id: 'elevation', label: 'Развёртка' },
+  { id: 'elevationSide', label: 'Боковая стена' },
   { id: 'plan', label: 'План' },
   { id: 'worktop', label: 'Столешница' },
   { id: 'schedule', label: 'Модули' },
   { id: 'hardware', label: 'Крепёж' },
 ]
+
+interface SheetImage {
+  svg: string
+  alt: string
+  file: string
+  width: number
+}
 
 /**
  * Рабочие чертежи для производства.
@@ -30,6 +38,42 @@ export function DrawingsPage() {
   const { photo } = useProject()
   const { drawings, title } = useDrawings()
   const [sheet, setSheet] = useState<Sheet>('elevation')
+
+  // Листы-картинки собраны в один справочник: иначе выбор нужного SVG
+  // расползается по трём тернарным выражениям и расходится с кнопкой скачивания.
+  const imageSheets: Partial<Record<Sheet, SheetImage>> = drawings
+    ? {
+        elevation: {
+          svg: drawings.elevation,
+          alt: 'Развёртка по основной стене',
+          file: 'razvertka',
+          width: 1020,
+        },
+        ...(drawings.elevationSide
+          ? {
+              elevationSide: {
+                svg: drawings.elevationSide,
+                alt: 'Развёртка по боковой стене',
+                file: 'razvertka-bokovaya',
+                width: 1020,
+              },
+            }
+          : {}),
+        plan: { svg: drawings.plan, alt: 'План', file: 'plan', width: 992 },
+        // У шкафа столешницы нет — лист не выпускается.
+        ...(drawings.worktop
+          ? {
+              worktop: {
+                svg: drawings.worktop,
+                alt: 'Схема столешниц',
+                file: 'stoleshnica',
+                width: 1020,
+              },
+            }
+          : {}),
+      }
+    : {}
+  const currentImage = imageSheets[sheet] ?? null
 
   const download = (name: string, svg: string) => {
     const link = document.createElement('a')
@@ -83,7 +127,13 @@ export function DrawingsPage() {
                   aria-label="Листы чертежей"
                   className="inline-flex gap-1 rounded-lg bg-surface-3 p-1"
                 >
-                  {TABS.map((tab) => (
+                  {TABS.filter((tab) => {
+                    // Вкладка боковой стены — только у угловой кухни,
+                    // вкладка столешницы — только там, где столешница есть.
+                    if (tab.id === 'elevationSide') return Boolean(drawings?.elevationSide)
+                    if (tab.id === 'worktop') return Boolean(drawings?.worktop)
+                    return true
+                  }).map((tab) => (
                     <button
                       key={tab.id}
                       type="button"
@@ -100,20 +150,12 @@ export function DrawingsPage() {
                   ))}
                 </div>
 
-                {(sheet === 'plan' || sheet === 'elevation' || sheet === 'worktop') && (
+                {currentImage && (
                   <Button
                     variant="secondary"
                     size="md"
                     icon={<Download />}
-                    onClick={() => {
-                      const map = {
-                        plan: ['plan', drawings.plan],
-                        elevation: ['razvertka', drawings.elevation],
-                        worktop: ['stoleshnica', drawings.worktop],
-                      } as const
-                      const [name, svg] = map[sheet]
-                      download(name, svg)
-                    }}
+                    onClick={() => download(currentImage.file, currentImage.svg)}
                   >
                     Скачать чертёж
                   </Button>
@@ -133,30 +175,18 @@ export function DrawingsPage() {
                 </span>
               </div>
 
-              {(sheet === 'plan' || sheet === 'elevation' || sheet === 'worktop') && (
+              {currentImage && (
                 <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-surface p-3">
                   <img
-                    src={svgToDataUrl(
-                      sheet === 'plan'
-                        ? drawings.plan
-                        : sheet === 'worktop'
-                          ? drawings.worktop
-                          : drawings.elevation,
-                    )}
-                    alt={
-                      sheet === 'plan'
-                        ? 'План кухни'
-                        : sheet === 'worktop'
-                          ? 'Схема столешниц'
-                          : 'Развёртка по стене'
-                    }
+                    src={svgToDataUrl(currentImage.svg)}
+                    alt={currentImage.alt}
                     className="h-auto max-w-none"
-                    style={{ width: sheet === 'plan' ? 992 : 1020 }}
+                    style={{ width: currentImage.width }}
                   />
                 </div>
               )}
 
-              {sheet === 'worktop' && (
+              {sheet === 'worktop' && drawings.worktop && (
                 <div className="mt-4 space-y-3 rounded-2xl border border-line bg-surface p-5">
                   <p className="text-[0.875rem] font-medium text-ink">Примечания к столешнице</p>
                   <ul className="space-y-1.5">
@@ -213,7 +243,7 @@ export function DrawingsPage() {
                   <table className="w-full min-w-[640px] border-collapse text-[0.875rem]">
                     <thead>
                       <tr className="border-b border-line text-left">
-                        {['ID', 'Модуль', 'Корпус Ш × В', 'Глуб.', 'Фасады', 'Фурнитура'].map(
+                        {['ID', 'Модуль', 'Стена', 'Корпус Ш × В', 'Глуб.', 'Фасады', 'Фурнитура'].map(
                           (heading) => (
                             <th
                               key={heading}
@@ -231,6 +261,7 @@ export function DrawingsPage() {
                         <tr key={row.id} className="border-b border-line last:border-0">
                           <td className="px-4 py-2.5 font-semibold text-ink">{row.id}</td>
                           <td className="px-4 py-2.5 text-graphite">{row.label}</td>
+                          <td className="px-4 py-2.5 text-graphite">{row.wall}</td>
                           <td className="px-4 py-2.5 tabular-nums text-graphite">{row.size}</td>
                           <td className="px-4 py-2.5 tabular-nums text-graphite">{row.depth}</td>
                           <td className="px-4 py-2.5 tabular-nums text-graphite">{row.doors}</td>

@@ -75,7 +75,7 @@ export interface SceneSpec {
   /** Кухня вписывается в фотографию: комната не рисуется. */
   compositing?: boolean
   /** Раскладка модулей в миллиметрах — из неё строятся чертежи. */
-  layout?: import('../drawings/types.ts').KitchenLayout
+  layout?: import('../drawings/types.ts').FurnitureLayout
   boxes: RenderBox[]
   materials: RenderMaterial[]
   lights: AreaLight[]

@@ -15,6 +15,7 @@ import { LightingSelector } from '@/components/selectors/LightingSelector'
 import { MaterialSelector } from '@/components/selectors/MaterialSelector'
 import { OptionsSelector } from '@/components/selectors/OptionsSelector'
 import { PaletteSelector } from '@/components/selectors/PaletteSelector'
+import { CategorySelector } from '@/components/selectors/CategorySelector'
 import { ParameterSection } from '@/components/selectors/ParameterSection'
 import { StyleSelector } from '@/components/selectors/StyleSelector'
 import { TextureSelector } from '@/components/selectors/TextureSelector'
@@ -203,6 +204,13 @@ export function ProjectPage() {
 
               {catalog && (
                 <>
+                  <ParameterSection id="category" eyebrow="Что проектируем">
+                    <CategorySelector
+                      value={params.category}
+                      onChange={(category) => updateParams({ category })}
+                    />
+                  </ParameterSection>
+
                   <ParameterSection id="dimensions" eyebrow="Размеры">
                     <DimensionsForm dimensions={params.dimensions} onChange={setDimension} />
                   </ParameterSection>
@@ -279,6 +287,7 @@ export function ProjectPage() {
                 disabled={!canGenerate || loading}
                 loading={starting}
                 missing={missing}
+                category={params.category}
               />
             </StickyActionBar>
           </div>
@@ -324,6 +333,7 @@ export function ProjectPage() {
               disabled={!canGenerate || loading}
               loading={starting}
               missing={missing}
+              category={params.category}
             />
           </div>
         </aside>

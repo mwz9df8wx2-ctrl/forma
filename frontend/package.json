@@ -18,7 +18,8 @@
     "test:regression": "node scripts/test-regression.mjs",
     "test:drawings": "node scripts/test-drawings.mjs",
     "test:hardware": "node scripts/test-hardware.mjs",
-    "test": "node scripts/test-hardware.mjs && node scripts/test-regression.mjs"
+    "test": "node scripts/test-hardware.mjs && node scripts/test-layout.mjs && node scripts/test-regression.mjs",
+    "test:layout": "node scripts/test-layout.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

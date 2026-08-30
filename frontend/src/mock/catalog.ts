@@ -47,6 +47,7 @@ export const DEFAULT_OPTION_VALUES = Object.fromEntries(
  * это ключевое решение проекта, поэтому предзаполнения у них нет.
  */
 export const DEFAULT_PARAMS: ProjectParams = {
+  category: 'kitchen',
   layoutKind: 'corner',
   dimensions: { ...DEFAULT_DIMENSIONS },
   materialId: null,

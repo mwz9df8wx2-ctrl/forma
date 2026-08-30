@@ -1,4 +1,4 @@
-import type { KitchenLayout, KitchenModule, ModuleKind } from './types.ts'
+import type { FurnitureLayout, FurnitureModule, ModuleKind } from './types.ts'
 
 /**
  * Разбивка фронта на модули стандартной ширины.
@@ -27,6 +27,12 @@ export interface LayoutInput {
   upperRuns: Array<{ start: number; end: number; kind: 'upper' | 'shelf' }>
   tallUnit: { start: number; end: number; depth: number; top: number } | null
   island: { x0: number; x1: number; z0: number; z1: number; top: number } | null
+  /**
+   * Длина боковой стены с кухней, м. 0 — прямая кухня.
+   * Угол принадлежит основному фронту, поэтому боковой ряд начинается
+   * после глубины столешницы.
+   */
+  sideRunLength: number
   window: { x0: number; x1: number; y0: number; y1: number } | null
   appliances: boolean
   hood: boolean
@@ -36,8 +42,8 @@ export interface LayoutInput {
 }
 
 /** Список модулей кухни в миллиметрах. */
-export function buildLayout(input: LayoutInput): KitchenLayout {
-  const modules: KitchenModule[] = []
+export function buildLayout(input: LayoutInput): FurnitureLayout {
+  const modules: FurnitureModule[] = []
   const counters: Record<string, number> = {}
 
   const push = (
@@ -50,12 +56,15 @@ export function buildLayout(input: LayoutInput): KitchenLayout {
     height: number,
     depth: number,
     doors: number,
+    extra?: { wall?: 'main' | 'side'; corner?: boolean },
   ) => {
     counters[prefix] = (counters[prefix] ?? 0) + 1
     modules.push({
       id: `${prefix}${counters[prefix]}`,
       kind,
       label,
+      wall: extra?.wall ?? 'main',
+      corner: extra?.corner,
       x: Math.round(x),
       width: Math.round(width),
       y: Math.round(y),
@@ -71,23 +80,53 @@ export function buildLayout(input: LayoutInput): KitchenLayout {
   const counterThickness = 38
   const plinth = 95
 
-  // Нижний ряд.
+  // Нижний ряд основной стены.
   const baseStart = mm(input.run.start)
   const baseWidth = mm(input.run.end) - baseStart
+  const sideLength = mm(input.sideRunLength)
+  // Угол отдан основному фронту: иначе два корпуса встали бы в одно место.
+  const sideStart = sideLength > 0 ? counterDepth : 0
+  const sideUsable = sideLength > 0 ? sideLength - sideStart : 0
+
   let cursor = baseStart
-  for (const width of splitRun(baseWidth)) {
+  const baseWidths = splitRun(baseWidth)
+  baseWidths.forEach((width, index) => {
+    // Угловым считается первый модуль основного ряда: к нему примыкает
+    // боковой фронт, и доступ внутрь у него другой.
+    const isCorner = sideUsable > 0 && index === 0
     push(
       'base',
       'Н',
-      'Нижний модуль',
+      isCorner ? 'Угловой нижний модуль' : 'Нижний модуль',
       cursor,
       width,
       plinth,
       counterHeight - counterThickness - plinth,
       counterDepth,
       width > 700 ? 2 : 1,
+      { corner: isCorner || undefined },
     )
     cursor += width
+  })
+
+  // Нижний ряд боковой стены. Глубина откладывается вдоль ширины помещения.
+  if (sideUsable >= 300) {
+    let sideCursor = sideStart
+    for (const width of splitRun(sideUsable)) {
+      push(
+        'base',
+        'Б',
+        'Нижний модуль (боковая стена)',
+        sideCursor,
+        width,
+        plinth,
+        counterHeight - counterThickness - plinth,
+        counterDepth,
+        width > 700 ? 2 : 1,
+        { wall: 'side' },
+      )
+      sideCursor += width
+    }
   }
 
   // Верхние ряды и открытые полки.
@@ -167,8 +206,11 @@ export function buildLayout(input: LayoutInput): KitchenLayout {
       height: mm(input.room.height),
       depth: mm(input.room.depth),
     },
+    category: 'kitchen',
+    hasWorktop: true,
     counter: { height: counterHeight, depth: counterDepth, thickness: counterThickness },
     run: { start: baseStart, end: mm(input.run.end) },
+    sideRun: sideUsable >= 300 ? { start: sideStart, end: sideLength } : null,
     backsplash: { top: mm(input.backsplashTop) },
     window: input.window
       ? {
