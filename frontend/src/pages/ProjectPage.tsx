@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Pencil, Wand } from 'lucide-react'
 import { isClaudeReady, loadAiSettings, loadClaude, type InteriorAnalysis } from '@/api'
@@ -100,9 +100,6 @@ export function ProjectPage() {
     show({ title: 'Параметры подобраны по фотографии', variant: 'success' })
   }
 
-  useEffect(() => {
-    if (!photo) navigate('/', { replace: true })
-  }, [photo, navigate])
 
   const handleGenerate = async () => {
     setStarting(true)
@@ -111,11 +108,11 @@ export function ProjectPage() {
     if (started) navigate('/generation')
   }
 
-  if (!photo) return null
-
   const selection = catalog ? describeSelection(catalog, params) : []
 
-  const photoPreview = (
+  // Фотография необязательна: без неё визуализация строится по размерам,
+  // а вписывание в снимок просто недоступно.
+  const photoPreview = photo ? (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
       <img
         src={photo.dataUrl}
@@ -130,6 +127,18 @@ export function ProjectPage() {
       </div>
       <Button variant="quiet" size="sm" className="shrink-0" onClick={() => navigate('/')}>
         Заменить
+      </Button>
+    </div>
+  ) : (
+    <div className="flex items-center gap-3 rounded-xl border border-dashed border-line-strong bg-surface-2 p-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-[0.875rem] leading-snug font-medium text-ink">Фотографии нет</p>
+        <p className="mt-0.5 text-xs leading-snug text-faint">
+          Визуализация построится по размерам. Со снимком кухню можно вписать в помещение.
+        </p>
+      </div>
+      <Button variant="quiet" size="sm" className="shrink-0" onClick={() => navigate('/')}>
+        Добавить
       </Button>
     </div>
   )
@@ -276,14 +285,24 @@ export function ProjectPage() {
         </div>
 
         <aside className="sticky top-0 hidden h-dvh w-[380px] shrink-0 flex-col border-l border-line bg-surface px-6 py-7 lg:flex xl:w-[420px]">
-          <img
-            src={photo.dataUrl}
-            alt="Исходная фотография кухни"
-            className="aspect-[4/3] w-full rounded-xl border border-line object-cover"
-          />
-          <p className="mt-2.5 text-xs text-faint">
-            Исходная фотография · {photo.width}×{photo.height} · {formatBytes(photo.sizeBytes)}
-          </p>
+          {photo ? (
+            <>
+              <img
+                src={photo.dataUrl}
+                alt="Исходная фотография кухни"
+                className="aspect-[4/3] w-full rounded-xl border border-line object-cover"
+              />
+              <p className="mt-2.5 text-xs text-faint">
+                Исходная фотография · {photo.width}×{photo.height} · {formatBytes(photo.sizeBytes)}
+              </p>
+            </>
+          ) : (
+            <div className="paper flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-line-strong px-6 text-center">
+              <p className="text-[0.8125rem] leading-relaxed text-muted">
+                Фотографии нет — визуализация построится по размерам
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
             <h2 className="eyebrow mb-3">Выбранные параметры</h2>

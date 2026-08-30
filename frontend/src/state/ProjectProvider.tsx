@@ -6,6 +6,8 @@ import {
   subscribeToGeneration,
   uploadProjectPhoto,
 } from '@/api'
+import { saveSpec } from '@/api/server/projects'
+import { paramsToSpec } from '@/lib/specMapping'
 import { useToast } from '@/hooks/useToast'
 import { nearestByHex } from '@/lib/color'
 import { formatDate } from '@/lib/format'
@@ -41,6 +43,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [title, setTitle] = useState(defaultTitle)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [generation, setGeneration] = useState<Generation | null>(null)
+  const [serverProject, setServerProject] = useState<{ id: string; revisionId: string | null } | null>(
+    null,
+  )
   // Зерно расчёта: сохраняется между запусками, меняется только по команде.
   // Значение берём лениво, чтобы не вызывать Math.random во время рендера.
   const seed = useRef<number | null>(null)
@@ -114,6 +119,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const startGeneration = useCallback(async (options?: { newSeed?: boolean }) => {
     if (missingParams(params).length > 0) return false
     if (options?.newSeed) seed.current = nextSeed()
+
+    // Спецификация уходит на сервер до расчёта: источник правды там, а не в
+    // браузере. Сервер сам решит, править черновик или создать новую ревизию.
+    if (serverProject) {
+      try {
+        const saved = await saveSpec(serverProject.id, paramsToSpec(params))
+        setServerProject({ id: serverProject.id, revisionId: saved.revision.id })
+        if (saved.createdNewRevision) {
+          show({
+            title: `Создана ревизия ${saved.revision.revisionNumber}`,
+            description: 'Согласованный вариант остался без изменений.',
+            variant: 'info',
+          })
+        }
+      } catch (error) {
+        showError(error)
+        return false
+      }
+    }
 
     subscription.current?.close()
     subscription.current = null
@@ -189,7 +213,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setGeneration(null)
       return false
     }
-  }, [params, project, title, photo, catalog, show, showError])
+  }, [params, project, serverProject, title, photo, catalog, show, showError])
 
   const openProject = useCallback((next: Project) => {
     subscription.current?.close()
@@ -205,6 +229,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     subscription.current?.close()
     subscription.current = null
     setProject(null)
+    setServerProject(null)
     setPhoto(null)
     setGeneration(null)
     setTitle(defaultTitle())
@@ -227,7 +252,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       generation,
       results: generation?.results ?? [],
       missing,
-      canGenerate: missing.length === 0 && Boolean(photo),
+      // Фотография необязательна: без неё сцена строится по размерам.
+      canGenerate: missing.length === 0,
+      serverProject,
+      setServerProject,
       setTitle,
       confirmPhoto,
       clearPhoto,
@@ -242,6 +270,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }),
     [
       project,
+      serverProject,
       photo,
       params,
       title,

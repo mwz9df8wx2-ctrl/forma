@@ -1,0 +1,11 @@
+{
+  "name": "@forma/shared",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Общий домен: спецификация проекта и её проверка. Используется фронтендом и сервером.",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^4.5.4"
+  }
+}

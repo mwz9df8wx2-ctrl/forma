@@ -29,6 +29,9 @@ export interface ProjectContextValue {
   startGeneration: (options?: { newSeed?: boolean }) => Promise<boolean>
   cancelGeneration: () => void
   openProject: (project: Project) => void
+  /** Привязка к проекту на сервере: туда уходит спецификация и файлы. */
+  serverProject: { id: string; revisionId: string | null } | null
+  setServerProject: (value: { id: string; revisionId: string | null } | null) => void
   resetProject: () => void
 }
 

@@ -1,0 +1,22 @@
+{
+  "name": "@forma/backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Сервер платформы: проекты, ревизии, файлы, каталог, генерация",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "migrate": "node src/db/migrate.ts",
+    "seed": "node src/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2"
+  }
+}

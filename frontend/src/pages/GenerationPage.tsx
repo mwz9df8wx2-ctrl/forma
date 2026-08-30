@@ -14,18 +14,15 @@ export function GenerationPage() {
     useGeneration()
 
   useEffect(() => {
-    if (!photo) {
-      navigate('/', { replace: true })
-      return
-    }
+    // Фотография необязательна: без неё сцена строится по размерам.
     if (!generation) {
       navigate('/setup', { replace: true })
       return
     }
     if (isCompleted) navigate('/results', { replace: true })
-  }, [photo, generation, isCompleted, navigate])
+  }, [generation, isCompleted, navigate])
 
-  if (!photo || !generation) return null
+  if (!generation) return null
 
   return (
     <>
@@ -67,7 +64,7 @@ export function GenerationPage() {
         ) : (
           <>
             <GenerationProgress
-              photoUrl={photo.dataUrl}
+              photoUrl={photo?.dataUrl ?? null}
               stages={stages}
               stageIndex={stageIndex}
               progress={progress}

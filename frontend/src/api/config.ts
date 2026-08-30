@@ -4,7 +4,7 @@
  * Важно: переменные VITE_* попадают в клиентский бандл, поэтому здесь
  * допустим только публичный адрес API. Ключи и секреты живут на бэкенде.
  */
-const rawApiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
+const rawApiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8787/api/v1'
 
 export const API_URL = rawApiUrl.replace(/\/+$/, '')
 

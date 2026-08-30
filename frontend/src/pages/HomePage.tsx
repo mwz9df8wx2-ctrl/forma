@@ -7,6 +7,7 @@ import { PhotoDropzone } from '@/components/camera/PhotoDropzone'
 import { PageHeader } from '@/components/layout/AppShell'
 import { Button } from '@/components/ui/Button'
 import { useProject } from '@/hooks/useProject'
+import { useOpenProject } from '@/hooks/useOpenProject'
 import { useProjects } from '@/hooks/useProjects'
 import { useToast } from '@/hooks/useToast'
 import { isCameraSupported } from '@/hooks/useCamera'
@@ -28,7 +29,8 @@ const STEPS = [
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { confirmPhoto, photoUploading, resetProject, openProject } = useProject()
+  const { confirmPhoto, photoUploading, resetProject } = useProject()
+  const openListItem = useOpenProject()
   const { projects } = useProjects()
   const { showError } = useToast()
 
@@ -197,10 +199,7 @@ export function HomePage() {
                     <li key={project.id} className="w-[62%] shrink-0 sm:w-[42%] lg:w-auto">
                       <button
                         type="button"
-                        onClick={() => {
-                          openProject(project)
-                          navigate('/setup')
-                        }}
+                        onClick={() => void openListItem(project)}
                         className="group w-full overflow-hidden rounded-xl border border-line bg-surface text-left transition-[border-color,box-shadow] duration-200 hover:border-line-strong hover:shadow-card"
                       >
                         <span className="block aspect-[3/2] w-full overflow-hidden bg-surface-3">

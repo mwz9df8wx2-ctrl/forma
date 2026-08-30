@@ -7,22 +7,52 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useOpenProject } from '@/hooks/useOpenProject'
+import { useSession } from '@/hooks/useSession'
+import { createProject } from '@/api/server/projects'
 import { useProject } from '@/hooks/useProject'
 import { useProjects } from '@/hooks/useProjects'
 import { useToast } from '@/hooks/useToast'
 import { plural } from '@/lib/format'
-import type { Project } from '@/types'
+import type { ProjectListItem } from '@/hooks/useProjects'
 
 export function ProjectsPage() {
   const navigate = useNavigate()
   const { projects, loading, error, remove, refresh } = useProjects()
-  const { openProject } = useProject()
-  const { show, showError } = useToast()
-  const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
+  const openListItem = useOpenProject()
+  const { session } = useSession()
+  const { resetProject, setTitle, setServerProject } = useProject()
+  const [creating, setCreating] = useState(false)
 
-  const handleOpen = (project: Project) => {
-    openProject(project)
-    navigate('/setup')
+  /**
+   * Новый проект. С сессией он заводится на сервере: у него сразу появляется
+   * первая ревизия, и дальше спецификация версионируется.
+   */
+  const handleCreate = async () => {
+    if (!session) {
+      navigate('/')
+      return
+    }
+    setCreating(true)
+    try {
+      const { project, revision } = await createProject({
+        title: `Проект от ${new Date().toLocaleDateString('ru-RU')}`,
+      })
+      resetProject()
+      setTitle(project.title)
+      setServerProject({ id: project.id, revisionId: revision.id })
+      navigate('/setup')
+    } catch (error) {
+      showError(error)
+    } finally {
+      setCreating(false)
+    }
+  }
+  const { show, showError } = useToast()
+  const [pendingDelete, setPendingDelete] = useState<ProjectListItem | null>(null)
+
+  const handleOpen = (project: ProjectListItem) => {
+    void openListItem(project)
   }
 
   const handleDelete = async () => {
@@ -50,8 +80,14 @@ export function ProjectsPage() {
         }
         action={
           <div className="hidden lg:block">
-            <Button variant="primary" size="md" icon={<Plus />} onClick={() => navigate('/')}>
-              Новая визуализация
+            <Button
+              variant="primary"
+              size="md"
+              icon={<Plus />}
+              loading={creating}
+              onClick={() => void handleCreate()}
+            >
+              {session ? 'Новый проект' : 'Новая визуализация'}
             </Button>
           </div>
         }
@@ -81,8 +117,14 @@ export function ProjectsPage() {
             title="У вас пока нет проектов."
             description="Создайте первую визуализацию прямо сейчас — понадобится только фотография кухни."
             action={
-              <Button variant="primary" size="lg" icon={<Plus />} onClick={() => navigate('/')}>
-                Новая визуализация
+              <Button
+                variant="primary"
+                size="lg"
+                icon={<Plus />}
+                loading={creating}
+                onClick={() => void handleCreate()}
+              >
+                {session ? 'Создать проект' : 'Новая визуализация'}
               </Button>
             }
           />

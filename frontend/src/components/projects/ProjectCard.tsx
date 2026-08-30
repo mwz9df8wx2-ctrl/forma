@@ -1,18 +1,19 @@
 import { Images, Trash2 } from 'lucide-react'
 import { IconButton } from '@/components/ui/Button'
 import { formatDate, plural } from '@/lib/format'
-import type { Project } from '@/types'
+import { projectStatusLabel, type ProjectListItem } from '@/hooks/useProjects'
 
 export function ProjectCard({
   project,
   onOpen,
   onDelete,
 }: {
-  project: Project
+  project: ProjectListItem
   onOpen: () => void
   onDelete: () => void
 }) {
-  const image = project.previewUrl ?? project.photo?.dataUrl ?? null
+  const image = project.previewUrl ?? project.photoUrl
+  const status = projectStatusLabel(project.status)
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card">
@@ -42,6 +43,7 @@ export function ProjectCard({
           </span>
           <span className="mt-1.5 block text-[0.8125rem] text-muted">
             {formatDate(project.updatedAt)}
+            {status ? ` · ${status}` : ''}
           </span>
           <span className="mt-2.5 flex items-center gap-2 text-[0.8125rem] text-graphite">
             <span className="truncate">{project.summary}</span>

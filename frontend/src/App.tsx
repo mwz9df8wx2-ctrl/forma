@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/Button'
 import { CatalogProvider } from '@/state/CatalogProvider'
 import { ProjectProvider } from '@/state/ProjectProvider'
 import { ToastProvider } from '@/state/ToastProvider'
+import { SessionProvider } from '@/state/SessionProvider'
 import { DrawingsPage } from '@/pages/DrawingsPage'
 import { GenerationPage } from '@/pages/GenerationPage'
 import { HomePage } from '@/pages/HomePage'
+import { LoginPage } from '@/pages/LoginPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { ProjectPage } from '@/pages/ProjectPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
@@ -43,23 +45,26 @@ export function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        <CatalogProvider>
-          <ProjectProvider>
-            <ScrollToTop />
-            <AppShell>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/setup" element={<ProjectPage />} />
-                <Route path="/generation" element={<GenerationPage />} />
-                <Route path="/results" element={<ResultsPage />} />
-                <Route path="/drawings" element={<DrawingsPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </AppShell>
-          </ProjectProvider>
-        </CatalogProvider>
+        <SessionProvider>
+          <CatalogProvider>
+            <ProjectProvider>
+              <ScrollToTop />
+              <AppShell>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/setup" element={<ProjectPage />} />
+                  <Route path="/generation" element={<GenerationPage />} />
+                  <Route path="/results" element={<ResultsPage />} />
+                  <Route path="/drawings" element={<DrawingsPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </AppShell>
+            </ProjectProvider>
+          </CatalogProvider>
+        </SessionProvider>
       </ToastProvider>
     </BrowserRouter>
   )

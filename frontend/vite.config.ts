@@ -16,10 +16,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
+      // Общий домен: одна и та же спецификация у фронтенда и сервера.
+      '@shared': path.resolve(import.meta.dirname, '../shared/src'),
     },
   },
   server: {
     host: true,
     port: 5173,
+    fs: {
+      // Разрешаем читать общий пакет за пределами каталога фронтенда.
+      allow: [path.resolve(import.meta.dirname, '..')],
+    },
   },
 })
