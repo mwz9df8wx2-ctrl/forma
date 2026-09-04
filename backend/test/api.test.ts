@@ -1368,3 +1368,105 @@ describe('Лимит сотрудников по тарифу', () => {
     assert.match(second.body.message, /тариф/i)
   })
 })
+
+// --- Замена мебели на снимке: снимок и маска доходят до провайдера ---------
+
+describe('Замена мебели на снимке', () => {
+  let token = ''
+  let projectId = ''
+
+  before(async () => {
+    const auth = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Замена', name: 'Мастер', email: 'replace@test.ru', password: 'parol12345' },
+    })
+    token = auth.body.token
+    projectId = await makeReadyProject(token, 'Кухня — замена')
+  })
+
+  after(() => setImageProvider(null))
+
+  /** Минимальный настоящий PNG: провайдер и хранилище проверяют сигнатуру. */
+  async function uploadPng(kind: string) {
+    const { encodePng } = await import('../src/providers/png.ts')
+    const png = encodePng(8, 8, () => [200, 190, 180])
+    const response = await api(`/api/v1/projects/${projectId}/files`, {
+      method: 'POST',
+      token,
+      raw: png,
+      headers: { 'X-File-Kind': kind, 'Content-Type': 'image/png' },
+    })
+    assert.equal(response.status, 201)
+    return response.body.file.id as string
+  }
+
+  it('передаёт провайдеру и снимок, и маску', async () => {
+    const photoId = await uploadPng('room_photo')
+    const maskId = await uploadPng('reference')
+
+    // Тип пишем явно: внутри замыкания TypeScript сузил бы его до never.
+    const seen: { hasReference: boolean; hasMask: boolean; prompt: string }[] = []
+    const mock = new MockImageProvider()
+    setImageProvider({
+      name: 'recorder',
+      model: 'recorder-1',
+      estimateKopecks: () => 0,
+      generate: async (request) => {
+        seen.push({
+          hasReference: request.reference !== null && request.reference !== undefined,
+          hasMask: request.mask !== null && request.mask !== undefined,
+          prompt: request.prompt,
+        })
+        return mock.generate(request)
+      },
+      isTransient: () => false,
+    })
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1, referenceFileId: photoId, maskFileId: maskId },
+    })
+    assert.equal(response.status, 201)
+
+    const job = await waitForJob(token, response.body.job.id)
+    assert.equal(job.status, 'completed')
+    assert.equal(seen.length, 1)
+    assert.equal(seen[0].hasReference, true)
+    assert.equal(seen[0].hasMask, true)
+    // Подсказку собирает сервер из спецификации, а не присылает браузер.
+    assert.match(seen[0].prompt, /kitchen/i)
+  })
+
+  it('без снимка маска не принимается', async () => {
+    const maskId = await uploadPng('reference')
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1, maskFileId: maskId },
+    })
+    assert.equal(response.status, 400)
+    assert.match(response.body.message, /без снимка/i)
+  })
+
+  it('чужой снимок использовать нельзя', async () => {
+    const other = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: { companyName: 'Чужие снимки', name: 'Гость', email: 'alien-photo@test.ru', password: 'parol12345' },
+    })
+    const alienProject = await makeReadyProject(other.body.token, 'Чужая кухня')
+    const alienPhoto = await api(`/api/v1/projects/${alienProject}/files`, {
+      method: 'POST',
+      token: other.body.token,
+      raw: (await import('../src/providers/png.ts')).encodePng(8, 8, () => [10, 10, 10]),
+      headers: { 'X-File-Kind': 'room_photo', 'Content-Type': 'image/png' },
+    })
+
+    const response = await api(`/api/v1/projects/${projectId}/generations`, {
+      method: 'POST',
+      token,
+      body: { quality: 'preview', variants: 1, referenceFileId: alienPhoto.body.file.id },
+    })
+    assert.equal(response.status, 404)
+  })
+})

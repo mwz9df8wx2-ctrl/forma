@@ -48,6 +48,8 @@ export function applySchema(): void {
   ensureColumn('catalog_items', 'price_unit', "TEXT NOT NULL DEFAULT 'piece'")
   ensureColumn('catalog_items', 'purchase_price_kopecks', 'INTEGER')
   ensureColumn('catalog_items', 'sale_price_kopecks', 'INTEGER')
+  // Маска замены появилась позже очереди заданий.
+  ensureColumn('generation_jobs', 'mask_file_id', 'TEXT')
 }
 
 /**

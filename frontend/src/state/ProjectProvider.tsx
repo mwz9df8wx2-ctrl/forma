@@ -8,6 +8,10 @@ import {
 } from '@/api'
 import { getProject, saveSpec } from '@/api/server/projects'
 import { enqueueGeneration, watchJob, type JobWatcher } from '@/api/server/billing'
+import { uploadFile } from '@/api/server/projects'
+import { analyzePhoto } from '@/analysis/analyze'
+import { eraseFurniture } from '@/analysis/erase'
+import { buildReplacementMask, decodePhoto } from '@/lib/maskImage'
 import { jobToGeneration, loadJobResults, releaseResults } from '@/lib/serverGeneration'
 import { useBilling } from '@/hooks/useBilling'
 import { paramsToSpec, specToParams } from '@/lib/specMapping'
@@ -181,6 +185,46 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [stopWatching])
 
   /**
+   * Подготовка снимка к замене мебели у провайдера.
+   *
+   * Провайдеру нужны две вещи: сам кадр и маска области, которую разрешено
+   * перерисовать. Маску считаем тем же кодом, что снимает прежнюю мебель
+   * локально, — иначе с ключом и без ключа менялись бы разные области.
+   */
+  const prepareReplacement = useCallback(
+    async (projectId: string): Promise<{ referenceFileId: string; maskFileId: string | null } | null> => {
+      if (!photo) return null
+      try {
+        const decoded = await decodePhoto(photo.dataUrl)
+        if (!decoded) return null
+
+        const response = await fetch(photo.dataUrl)
+        const photoBlob = await response.blob()
+        const uploaded = await uploadFile(projectId, photoBlob, 'room_photo')
+
+        const analysis = analyzePhoto(decoded.pixels, decoded.width, decoded.height)
+        const plate = eraseFurniture(decoded.pixels, decoded.width, decoded.height, analysis)
+        if (!plate.reliable) {
+          // Границы прежней мебели не определились. Отправляем снимок без
+          // маски: пусть провайдер решает сам, это честнее выдуманной области.
+          return { referenceFileId: uploaded.id, maskFileId: null }
+        }
+
+        const maskBlob = await buildReplacementMask(plate.mask, decoded.width, decoded.height)
+        if (!maskBlob) return { referenceFileId: uploaded.id, maskFileId: null }
+        const maskFile = await uploadFile(projectId, maskBlob, 'reference')
+        return { referenceFileId: uploaded.id, maskFileId: maskFile.id }
+      } catch (error) {
+        // Подготовка снимка не должна ронять запуск: без неё кухня просто
+        // будет нарисована с нуля.
+        showError(error)
+        return null
+      }
+    },
+    [photo, showError],
+  )
+
+  /**
    * Запуск на сервере.
    *
    * Сервер резервирует кредиты, ставит задание в очередь и отдаёт его
@@ -191,11 +235,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     async (projectId: string) => {
       stopWatching()
       try {
+        const replacement = await prepareReplacement(projectId)
         const { job, reused } = await enqueueGeneration({
           projectId,
           quality: 'preview',
           variants: 3,
           seed: currentSeed(),
+          referenceFileId: replacement?.referenceFileId ?? null,
+          maskFileId: replacement?.maskFileId ?? null,
           // Ключ идемпотентности: повтор того же запроса не создаёт второе
           // платное задание, даже если браузер отправил его дважды.
           idempotencyKey: crypto.randomUUID(),
@@ -252,7 +299,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return false
       }
     },
-    [stopWatching, refreshWallet, show, showError, catalog, params],
+    [stopWatching, prepareReplacement, refreshWallet, show, showError, catalog, params],
   )
 
   const startGeneration = useCallback(async (options?: { newSeed?: boolean }) => {

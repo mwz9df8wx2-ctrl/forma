@@ -23,6 +23,12 @@ const GAP_SHARE = 0.012
 
 export interface ErasedPlate {
   pixels: Uint8ClampedArray
+  /**
+   * Что именно снято: единица — пиксель прежней мебели.
+   * Из этой же маски строится маска замены для провайдера — так локальный
+   * расчёт и провайдер работают по одной области, а не по двум разным.
+   */
+  mask: Uint8Array
   /** Доля кадра, которую пришлось закрасить. */
   erasedShare: number
   /** Можно ли доверять разделению мебели и стены. */
@@ -223,6 +229,7 @@ export function eraseFurniture(
   if (top < 4) {
     return {
       pixels: out,
+      mask: new Uint8Array(width * height),
       erasedShare: 0,
       reliable: false,
       reason: 'на снимке не видно чистой стены выше мебели',
@@ -412,6 +419,7 @@ export function eraseFurniture(
   if (erasedShare > 0.6) {
     return {
       pixels: out,
+      mask: new Uint8Array(width * height),
       erasedShare,
       reliable: false,
       reason: 'мебель не отделяется от стены: слишком пёстрый или тёмный кадр',
@@ -480,6 +488,7 @@ export function eraseFurniture(
 
   return {
     pixels: out,
+    mask,
     erasedShare,
     reliable: true,
     reason: null,

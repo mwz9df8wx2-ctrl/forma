@@ -37,7 +37,10 @@ const enqueueSchema = z.object({
   seed: z.int().min(0).max(2_147_483_647).default(0),
   /** Свободные пожелания клиента. Полный текст подсказки собирает сервер. */
   notes: z.string().max(400).default(''),
+  /** Снимок помещения: с ним провайдер меняет мебель, а не рисует с нуля. */
   referenceFileId: z.string().nullish(),
+  /** Маска замены: прозрачные пиксели — то, что разрешено перерисовать. */
+  maskFileId: z.string().nullish(),
 })
 
 export function registerGenerationRoutes(router: Router): void {
@@ -79,6 +82,7 @@ export function registerGenerationRoutes(router: Router): void {
       seed: input.seed === 0 ? Math.floor(Math.random() * 2_147_483_646) + 1 : input.seed,
       notes: input.notes,
       referenceFileId: input.referenceFileId ?? null,
+      maskFileId: input.maskFileId ?? null,
       idempotencyKey,
     })
 

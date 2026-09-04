@@ -39,6 +39,8 @@ export interface EnqueueInput {
   seed?: number
   notes?: string
   referenceFileId?: string | null
+  /** Маска замены: прозрачные пиксели PNG — область, которую перерисуют. */
+  maskFileId?: string | null
   /** Ключ идемпотентности: повтор запроса не должен стоить вторых денег. */
   idempotencyKey: string
 }
@@ -56,6 +58,7 @@ export async function enqueueGeneration(
       seed: input.seed ?? 0,
       notes: input.notes ?? '',
       referenceFileId: input.referenceFileId ?? null,
+      maskFileId: input.maskFileId ?? null,
     },
   })
 }

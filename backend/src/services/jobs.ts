@@ -51,6 +51,7 @@ interface JobRow {
   seed: number
   notes: string
   referenceFileId: string | null
+  maskFileId: string | null
   provider: string
   model: string | null
   creditsReserved: number
@@ -67,7 +68,7 @@ interface JobRow {
 const JOB_COLUMNS = `
   id, company_id AS companyId, project_id AS projectId, revision_id AS revisionId,
   created_by AS createdBy, status, stage, variants, quality, size, seed, notes,
-  reference_file_id AS referenceFileId, provider, model,
+  reference_file_id AS referenceFileId, mask_file_id AS maskFileId, provider, model,
   credits_reserved AS creditsReserved, estimated_cost_kopecks AS estimatedCostKopecks,
   actual_cost_kopecks AS actualCostKopecks, attempts, error_code AS errorCode,
   error_message AS errorMessage, created_at AS createdAt, started_at AS startedAt,
@@ -187,6 +188,7 @@ export interface EnqueueInput {
   seed: number
   notes: string
   referenceFileId: string | null
+  maskFileId: string | null
   idempotencyKey: string | null
 }
 
@@ -277,11 +279,16 @@ export function enqueueGeneration(input: EnqueueInput): { job: GenerationJob; re
       throw badRequest(`Не хватает размеров: ${readiness.missing.join(', ')}`)
     }
 
-    if (input.referenceFileId) {
+    for (const fileId of [input.referenceFileId, input.maskFileId]) {
+      if (!fileId) continue
       const file = db()
         .prepare('SELECT id FROM project_files WHERE id = ? AND company_id = ?')
-        .get(input.referenceFileId, input.companyId)
+        .get(fileId, input.companyId)
       if (!file) throw notFound('Файл-образец не найден')
+    }
+    // Маска без снимка бессмысленна: перерисовывать нечего.
+    if (input.maskFileId && !input.referenceFileId) {
+      throw badRequest('Маска замены передана без снимка помещения')
     }
 
     assertRateLimit(input.companyId)
@@ -322,9 +329,10 @@ export function enqueueGeneration(input: EnqueueInput): { job: GenerationJob; re
       .prepare(
         `INSERT INTO generation_jobs
            (id, company_id, project_id, revision_id, created_by, status, stage,
-            variants, quality, size, seed, notes, reference_file_id, provider, model,
-            credits_reserved, estimated_cost_kopecks, attempts, idempotency_key, created_at)
-         VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+            variants, quality, size, seed, notes, reference_file_id, mask_file_id,
+            provider, model, credits_reserved, estimated_cost_kopecks, attempts,
+            idempotency_key, created_at)
+         VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
       )
       .run(
         jobId,
@@ -339,6 +347,7 @@ export function enqueueGeneration(input: EnqueueInput): { job: GenerationJob; re
         input.seed,
         input.notes,
         input.referenceFileId,
+        input.maskFileId,
         provider.name,
         provider.model,
         credits,
@@ -416,6 +425,8 @@ async function runJob(jobId: string): Promise<void> {
     const spec = projectSpecSchema.parse(JSON.parse(revision.spec))
     const prompt = buildImagePrompt({ spec, notes: row.notes })
     const reference = await readReference(row.referenceFileId)
+    // Маску отправляем только вместе со снимком: без него она ничего не значит.
+    const mask = reference ? await readReference(row.maskFileId) : null
 
     setProjectStatus(row.projectId, 'visualization_running')
     setStatus(jobId, 'generating')
@@ -427,6 +438,7 @@ async function runJob(jobId: string): Promise<void> {
       size: row.size,
       seed: row.seed,
       reference,
+      mask,
     }
 
     let attempt = 0

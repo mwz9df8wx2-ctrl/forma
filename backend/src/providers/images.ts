@@ -17,7 +17,13 @@ export interface ImageRequest {
   quality: GenerationQuality
   size: '1024x1024' | '1536x1024' | '1024x1536'
   seed: number
+  /** Снимок помещения. Есть — значит новую мебель вписывают в него. */
   reference?: { data: Buffer; mime: string } | null
+  /**
+   * Маска замены: прозрачные пиксели PNG — то, что провайдер перерисует.
+   * Без неё модель меняет кадр целиком, включая стены и окна.
+   */
+  mask?: { data: Buffer; mime: string } | null
 }
 
 export interface GeneratedImage {
@@ -118,10 +124,11 @@ export class OpenAiImageProvider implements ImageProvider {
     return PRICE_KOPECKS[request.quality] * request.variants
   }
 
-  async generate(request: ImageRequest): Promise<ImageResult> {
-    if (!env.openAiKey) throw unavailable('Провайдер генерации не настроен на сервере')
-
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+  /**
+   * Генерация с нуля: у провайдера нет снимка, он рисует по одному описанию.
+   */
+  private generationRequest(request: ImageRequest): Request {
+    return new Request('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${env.openAiKey}`,
@@ -135,6 +142,54 @@ export class OpenAiImageProvider implements ImageProvider {
         quality: request.quality === 'final' ? 'high' : 'medium',
       }),
     })
+  }
+
+  /**
+   * Замена мебели на снимке.
+   *
+   * Другой эндпоинт и другой формат: не JSON, а multipart, потому что вместе
+   * с текстом уходят два файла. Маска решает всё: прозрачные её пиксели —
+   * область, которую провайдеру разрешено перерисовать. Без маски он меняет
+   * кадр целиком и заодно переставляет окна, а заказчик ждёт свою комнату
+   * с другой кухней, а не другую комнату.
+   */
+  private editRequest(request: ImageRequest): Request {
+    const form = new FormData()
+    form.append('model', this.model)
+    form.append('prompt', request.prompt)
+    form.append('n', String(request.variants))
+    form.append('size', request.size)
+    form.append('quality', request.quality === 'final' ? 'high' : 'medium')
+
+    const photo = request.reference as { data: Buffer; mime: string }
+    form.append(
+      'image',
+      new Blob([new Uint8Array(photo.data)], { type: photo.mime }),
+      'room.png',
+    )
+    if (request.mask) {
+      form.append(
+        'mask',
+        new Blob([new Uint8Array(request.mask.data)], { type: request.mask.mime }),
+        'mask.png',
+      )
+    }
+
+    // Content-Type не ставим руками: границу multipart проставит fetch,
+    // и своя строка её только сломает.
+    return new Request('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.openAiKey}` },
+      body: form,
+    })
+  }
+
+  async generate(request: ImageRequest): Promise<ImageResult> {
+    if (!env.openAiKey) throw unavailable('Провайдер генерации не настроен на сервере')
+
+    const response = await fetch(
+      request.reference ? this.editRequest(request) : this.generationRequest(request),
+    )
 
     if (!response.ok) {
       const text = await response.text().catch(() => '')

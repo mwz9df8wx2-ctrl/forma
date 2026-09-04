@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
   seed              INTEGER NOT NULL DEFAULT 0,
   notes             TEXT NOT NULL DEFAULT '',
   reference_file_id TEXT REFERENCES project_files(id) ON DELETE SET NULL,
+  mask_file_id      TEXT REFERENCES project_files(id) ON DELETE SET NULL,
   provider          TEXT NOT NULL,
   model             TEXT,
   credits_reserved  INTEGER NOT NULL DEFAULT 0,
